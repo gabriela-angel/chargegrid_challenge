@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ChargeGrid Intelligence — Configurações</title>
+<link rel="icon" href="data:,">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/style.css">
+<script src="https://unpkg.com/htmx.org@1.9.12"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
+<script>(function(){try{var t=localStorage.getItem("cg-theme");if(t==="light"||t==="dark"){document.documentElement.setAttribute("data-theme",t);}}catch(e){}})();</script>
+</head>
+<body class="dashboard" hx-headers='{}'>
+
+  {% from "partials/icons.html" import icon %}
+  <header class="dash-header">
+    <div class="brand">
+      <h1>{{ icon("zap", "brand-icon", filled=True) }}ChargeGrid Intelligence</h1>
+    </div>
+    {% include "partials/theme_toggle.html" %}
+  </header>
+
+  {% include "partials/dash_nav.html" %}
+
+  <div class="dash-stack">
+
+  {% from "partials/editable.html" import editable_row, password_row, edit_actions %}
+
+  {% if saved %}
+  <div class="banner-info" style="border-style:solid; color:var(--available);">Configurações salvas.</div>
+  {% endif %}
+  {% if msg == 'senha_email' %}
+  <div class="banner-info" style="border-style:solid; color:var(--available);">
+    E-mail enviado para <strong>{{ company.email }}</strong> com o link para redefinir a senha.
+  </div>
+  {% endif %}
+
+  {# ------------------------------------------------------------ Conta #}
+  <section class="panel" aria-labelledby="h-config-conta">
+    <h2 id="h-config-conta"><i data-lucide="user-cog" class="panel-icon" aria-hidden="true"></i>Conta do administrador</h2>
+    <p style="color:var(--ink-mid); font-size:0.85rem; margin-top:-0.4rem;">
+      Dados da conta usada para entrar no Dashboard — não afeta as contas de clientes.
+      Clique no lápis para editar.
+    </p>
+
+    {# Formulário separado, FORA do de edição (forms não aninham): é o alvo do link "Alterar senha". #}
+    <form id="form-senha-empresa" method="post" action="/dashboard/configuracoes/alterar-senha"></form>
+
+    <form method="post" action="/dashboard/configuracoes/conta" class="edit-form" data-edit-form
+          {{ 'data-start-editing' if edit_section == 'conta' else '' }}>
+      {% if error and edit_section == 'conta' %}<div class="field-error">{{ error }}</div>{% endif %}
+      {{ editable_row("empresa", "Empresa / local", "empresa",
+                      form.empresa if form.empresa is defined else company.empresa, original=company.empresa) }}
+      {{ editable_row("responsavel", "Nome do responsável", "responsavel",
+                      form.responsavel if form.responsavel is defined else company.responsavel, original=company.responsavel) }}
+      {{ editable_row("email", "E-mail de acesso", "email",
+                      form.email if form.email is defined else company.email, type="email", original=company.email) }}
+      {{ password_row("form-senha-empresa") }}
+      {{ edit_actions() }}
+    </form>
+  </section>
+
+  {# ----------------------------------------------- Configurações operacionais #}
+  <section class="panel" aria-labelledby="h-config-operacional">
+    <h2 id="h-config-operacional"><i data-lucide="settings" class="panel-icon" aria-hidden="true"></i>Configurações operacionais</h2>
+
+    <h3 class="edit-subtitle">Tarifa vigente</h3>
+    <form method="post" action="/dashboard/configuracoes/tarifa" class="edit-form" data-edit-form
+          {{ 'data-start-editing' if edit_section == 'tarifa' else '' }}>
+      {% if error and edit_section == 'tarifa' %}<div class="field-error">{{ error }}</div>{% endif %}
+      {{ editable_row("tarifa", "Valor por kWh", "tarifa",
+                      '%g'|format(form.tarifa) if form.tarifa is defined else ('%g'|format(tariff)),
+                      type="number", suffix="R$ / kWh", extra='step="0.01" min="0.01"',
+                      original='%g'|format(tariff)) }}
+      {{ edit_actions("Salvar tarifa") }}
+    </form>
+
+    <h3 class="edit-subtitle">Potência da rede</h3>
+    <form method="post" action="/dashboard/configuracoes/potencia" class="edit-form" data-edit-form id="form-potencia"
+          {{ 'data-start-editing' if edit_section == 'potencia' else '' }}>
+      {% if error and edit_section == 'potencia' %}<div class="field-error">{{ error }}</div>{% endif %}
+      {% set kw_atual = '%g'|format(settings.contracted_limit_kw) %}
+      {% set pct_atual = '%g'|format(settings.usable_limit_pct) %}
+      {{ editable_row("contratada_kw", "kW contratados", "contratada_kw",
+                      '%g'|format(form.contratada_kw) if form.contratada_kw is defined else kw_atual,
+                      type="number", suffix="kW", extra='step="any" min="1"',
+                      hint="Demanda contratada com a distribuidora.", original=kw_atual) }}
+      {{ editable_row("limite_uso_pct", "Limite de uso antes da redução de potência", "limite_uso_pct",
+                      '%g'|format(form.limite_uso_pct) if form.limite_uso_pct is defined else pct_atual,
+                      type="number", suffix="%",
+                      extra=('step="any"' ~ (' min="%g"'|format(settings.min_usable_limit_pct) if settings.min_usable_limit_pct is defined else '') ~ (' max="%g"'|format(settings.max_usable_limit_pct) if settings.max_usable_limit_pct is defined else '')),
+                      hint="Quando a soma das potências chega a essa % dos kW contratados, os carregadores passam a ter a potência reduzida. Padrão 90%" ~ (", máximo %g%%."|format(settings.max_usable_limit_pct) if settings.max_usable_limit_pct is defined else "."),
+                      original=pct_atual) }}
+      <div class="edit-derived">
+        Potência utilizável: <b id="usable-kw-note">{{ '%.1f'|format(settings.usable_limit_kw) }} kW</b>
+      </div>
+      {{ edit_actions("Salvar potência") }}
+    </form>
+
+    <h3 class="edit-subtitle">Pagamento</h3>
+    <div class="billing-row"><span>Modo de pagamento (PAYMENT_MODE)</span><span class="val mono">{{ payment_mode }}</span></div>
+    <div class="billing-note">
+      Definido por variável de ambiente (<code>.env</code>) — trocar exige reiniciar o servidor, então não é editável por aqui.
+    </div>
+  </section>
+
+  </div>
+
+  {% include "partials/chat_widget.html" %}
+
+  {% include "partials/edit_toggle.html" %}
+  <script>
+  /* Mostra, enquanto a pessoa digita, quantos kW ficam utilizáveis com os valores do formulário. */
+  (function () {
+    var form = document.getElementById("form-potencia");
+    var kw = document.getElementById("contratada_kw");
+    var pct = document.getElementById("limite_uso_pct");
+    var out = document.getElementById("usable-kw-note");
+    if (!form || !kw || !pct || !out) return;
+    function update() {
+      var v = parseFloat(kw.value) * parseFloat(pct.value) / 100;
+      out.textContent = isFinite(v) ? v.toFixed(1).replace(".", ",") + " kW" : "—";
+    }
+    form.addEventListener("input", update);
+    form.addEventListener("edit:change", update);  // Cancelar restaura os valores originais
+    update();  // estado inicial (inclui a tela reaberta com erro, com os valores digitados)
+  })();
+  </script>
+  <script src="/static/app.js"></script>
+  <script>ChargeGrid.init({ page: "dashboard" });</script>
+</body>
+</html>

@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ChargeGrid — Histórico</title>
+<link rel="icon" href="data:,">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/style.css">
+<script>(function(){try{var t=localStorage.getItem("cg-theme");if(t==="light"||t==="dark"){document.documentElement.setAttribute("data-theme",t);}}catch(e){}})();</script>
+</head>
+<body class="cliente-screen">
+
+  {% from "partials/back_button.html" import back_button %}
+
+  {% from "partials/icons.html" import icon %}
+
+  <main class="cliente-card wide historico-card">
+    <div class="cliente-brand-row">
+      {{ back_button("/cliente/home", "Voltar") }}
+      <div class="cliente-brand">{{ icon("zap", filled=True) }}<span>ChargeGrid</span></div>
+      {% include "partials/theme_toggle.html" %}
+    </div>
+    <h1>Histórico de carregamentos</h1>
+
+    {% if sessions %}
+    <div style="overflow-x:auto;">
+      <table class="table-simple">
+        <thead>
+          <tr><th>Data</th><th>Veículo</th><th>Vaga</th><th>Energia</th><th>Duração</th><th>Valor</th></tr>
+        </thead>
+        <tbody>
+          {% for s in sessions %}
+          <tr>
+            <td>{{ s.started_at_date }}</td>
+            <td>{{ s.vehicle_id }}</td>
+            <td>{{ s.charger_id }}</td>
+            <td>{{ '%.3f'|format(s.energy_kwh) }} kWh</td>
+            <td>{{ '%.1f'|format(s.duration_min) }} min</td>
+            <td>{{ s.revenue_rs|brl }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty-state">Nenhuma recarga concluída ainda para os veículos desta conta.</div>
+    {% endif %}
+
+  </main>
+
+</body>
+</html>

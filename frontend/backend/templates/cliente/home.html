@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ChargeGrid — Olá, {{ account.nome.split(' ')[0] }}</title>
+<link rel="icon" href="data:,">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/style.css">
+<script>(function(){try{var t=localStorage.getItem("cg-theme");if(t==="light"||t==="dark"){document.documentElement.setAttribute("data-theme",t);}}catch(e){}})();</script>
+</head>
+<body class="cliente-screen">
+
+  {% from "partials/icons.html" import icon %}
+
+  <main class="cliente-card">
+    <div class="cliente-brand-row">
+      <div class="cliente-brand">{{ icon("zap", filled=True) }}<span>ChargeGrid</span></div>
+      {% include "partials/theme_toggle.html" %}
+    </div>
+    <h1 class="home-greeting">Olá, {{ account.nome.split(' ')[0] }}!</h1>
+
+    {% if active_charger_id %}
+    <div class="banner-warning">Você tem uma recarga em andamento na vaga {{ active_charger_id }}.</div>
+    {% endif %}
+
+    <nav class="home-menu">
+      {% if active_charger_id %}
+      <a href="/cliente/carregando">{{ icon("activity") }}<span>Ver recarga em andamento</span></a>
+      {% else %}
+      <a href="/cliente/carregar">{{ icon("plug-zap") }}<span>Carregar veículo</span></a>
+      {% endif %}
+      <a href="/cliente/perfil">{{ icon("user") }}<span>Meu perfil</span></a>
+      <a href="/cliente/veiculos">{{ icon("car") }}<span>Meus veículos</span></a>
+      <a href="/cliente/historico">{{ icon("history") }}<span>Histórico de carregamentos</span></a>
+      <form method="post" action="/cliente/logout" style="margin:0;">
+        <button type="submit" class="logout-btn">Sair</button>
+      </form>
+    </nav>
+  </main>
+
+</body>
+</html>

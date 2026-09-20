@@ -1,0 +1,67 @@
+{#
+  Componentes da UI "informação + ícone de editar" (Configurações do dashboard
+  e "Meu perfil" do cliente). Por padrão o valor aparece como texto fixo, com
+  um lápis no canto direito; só depois do clique naquele lápis o campo fica
+  editável e aparecem "Salvar"/"Cancelar" (ver partials/edit_toggle.html).
+
+  Uso:
+    {% from "partials/editable.html" import editable_row, static_row, password_row, edit_actions %}
+    <form method="post" action="..." data-edit-form>
+      {{ editable_row("nome", "Nome", "nome", valor) }}
+      {{ edit_actions() }}
+    </form>
+#}
+
+{% macro pencil_icon() -%}
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>
+{%- endmacro %}
+
+{# value = o que o input mostra agora; original = o valor salvo de verdade
+   (pode diferir quando a tela volta com erro de validação: value é o que o
+   usuário digitou, original é o que "Cancelar" deve restaurar). #}
+{% macro editable_row(id, label, name, value, type="text", suffix="", hint="", extra="", original=none) %}
+<div class="edit-row" data-edit-row>
+  <div class="edit-row-main">
+    <label class="edit-label" for="{{ id }}">{{ label }}</label>
+    <div class="edit-value">
+      <input type="{{ type }}" id="{{ id }}" name="{{ name }}" value="{{ value }}"
+             data-original="{{ value if original is none else original }}" readonly required {{ extra|safe }}
+             {% if suffix %}style="width: {{ ([value|string|length, 1]|max) + 1 }}ch;"{% endif %}>
+      {% if suffix %}<span class="edit-suffix">{{ suffix }}</span>{% endif %}
+    </div>
+    {% if hint %}<div class="edit-hint">{{ hint }}</div>{% endif %}
+  </div>
+  <button type="button" class="edit-btn" data-edit-toggle aria-label="Editar {{ label }}" title="Editar {{ label }}">{{ pencil_icon() }}</button>
+</div>
+{% endmacro %}
+
+{# Linha só de leitura, sem lápis (ex.: CPF — é a chave da conta, não muda). #}
+{% macro static_row(label, value) %}
+<div class="edit-row">
+  <div class="edit-row-main">
+    <span class="edit-label">{{ label }}</span>
+    <div class="edit-value"><span class="edit-static">{{ value }}</span></div>
+  </div>
+</div>
+{% endmacro %}
+
+{# Linha da senha: nunca mostra nem edita a senha — só o link "Alterar senha",
+   que pede a redefinição por e-mail. O botão usa o atributo form="" pra enviar
+   um <form> separado (declarado FORA do formulário de edição, porque forms
+   não podem ser aninhados) e assim não dispara o "Salvar" do bloco. #}
+{% macro password_row(form_id) %}
+<div class="edit-row">
+  <div class="edit-row-main">
+    <span class="edit-label">Senha</span>
+    <div class="edit-value"><span class="edit-static">••••••••</span></div>
+  </div>
+  <button type="submit" form="{{ form_id }}" class="edit-link">Alterar senha</button>
+</div>
+{% endmacro %}
+
+{% macro edit_actions(save_label="Salvar alterações") %}
+<div class="edit-actions" data-edit-actions hidden>
+  <button type="submit" class="primary">{{ save_label }}</button>
+  <button type="button" class="btn-secondary" data-edit-cancel>Cancelar</button>
+</div>
+{% endmacro %}

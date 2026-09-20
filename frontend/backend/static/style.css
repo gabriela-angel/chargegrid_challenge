@@ -1,0 +1,1435 @@
+/* ChargeGrid Intelligence — estilos
+``
+   Modo claro/escuro: preto e branco são as cores PRIMÁRIAS (fundo/texto);
+   vermelho GoodWe continua como o único acento de marca, e verde/âmbar/
+   vermelho-crítico continuam como cores SEMÂNTICAS (status), não decorativas
+   — em ambos os modos. Alternância via atributo `data-theme` em <html>,
+   controlada por partials/theme_toggle.html + localStorage; sem esse
+   atributo, segue a preferência do sistema (prefers-color-scheme). */
+
+:root {
+  --bg: #FFFFFF;
+  --bg-soft: #F6F6F7;
+  --surface: #FFFFFF;
+  --surface-2: #F0F0F1;
+  --line: #E4E4E6;
+  --ink: #0A0A0B;
+  --ink-mid: #56585C;
+  --ink-low: #8B8D91;
+
+  --goodwe-red: #FF0000;
+  --goodwe-red-deep: #D40000;
+  --available: #00A67A;
+  --amber: #B8790A;
+  --critical: #8C0000;
+
+  /* Console de eventos: sempre escuro (referência a terminal), em
+     QUALQUER modo — por isso são tokens próprios, não reaproveitam --ink
+     (que muda de cor entre os modos). */
+  --console-bg: #121214;
+  --console-text: #D8D9DB;
+
+  --font-display: "Space Grotesk", "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", "Consolas", monospace;
+  --font-body: "Inter", "Segoe UI", sans-serif;
+
+  --radius: 18px;
+  --radius-sm: 10px;
+  --radius-pill: 999px;
+  --transition-fast: 160ms ease;
+  --transition-med: 420ms ease;
+  --transition-lift: 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* Elevação — camadas exatas pedidas: perto (contato) + longe (halo). */
+  --shadow-card: 0 1px 2px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.06);
+  --shadow-card-hover: 0 4px 8px rgba(0,0,0,0.06), 0 16px 32px rgba(0,0,0,0.10);
+  --shadow-lg: 0 20px 60px rgba(0,0,0,0.25);
+  --glow-accent: 0 0 0 rgba(0,0,0,0);
+  --surface-blur: none;
+}
+
+/* ---- Modo escuro: explícito via toggle (data-theme="dark") sempre
+   vence; sem o atributo, segue a preferência do sistema (bloco
+   @media logo abaixo). */
+
+:root[data-theme="dark"] {
+  --bg: #0A0A0B;
+  --bg-soft: #111113;
+  --surface: #17181B;
+  --surface-2: #1F2023;
+  --line: #2B2C30;
+  --ink: #F5F5F6;
+  --ink-mid: #A6A8AC;
+  --ink-low: #717377;
+
+  --goodwe-red: #FF3B3B;
+  --goodwe-red-deep: #FF6B6B;
+  --available: #00D992;
+  --amber: #FFB648;
+  --critical: #FF5C5C;
+
+  --console-bg: #000000;
+  --console-text: #D8D9DB;
+
+  --shadow-card: 0 1px 2px rgba(0,0,0,0.5), 0 8px 24px rgba(0,0,0,0.45);
+  --shadow-card-hover: 0 4px 10px rgba(0,0,0,0.55), 0 18px 40px rgba(0,0,0,0.5);
+  --shadow-lg: 0 24px 70px rgba(0,0,0,0.6);
+  --glow-accent: 0 0 28px rgba(255,59,59,0.28);
+  --surface-blur: blur(14px);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]):not([data-theme="dark"]) {
+    --bg: #0A0A0B;
+    --bg-soft: #111113;
+    --surface: #17181B;
+    --surface-2: #1F2023;
+    --line: #2B2C30;
+    --ink: #F5F5F6;
+    --ink-mid: #A6A8AC;
+    --ink-low: #717377;
+
+    --goodwe-red: #FF3B3B;
+    --goodwe-red-deep: #FF6B6B;
+    --available: #00D992;
+    --amber: #FFB648;
+    --critical: #FF5C5C;
+
+    --console-bg: #000000;
+    --console-text: #D8D9DB;
+
+    --shadow-card: 0 1px 2px rgba(0,0,0,0.5), 0 8px 24px rgba(0,0,0,0.45);
+    --shadow-card-hover: 0 4px 10px rgba(0,0,0,0.55), 0 18px 40px rgba(0,0,0,0.5);
+    --shadow-lg: 0 24px 70px rgba(0,0,0,0.6);
+    --glow-accent: 0 0 28px rgba(255,59,59,0.28);
+    --surface-blur: blur(14px);
+  }
+}
+
+html {
+  background: var(--bg);
+  color-scheme: light dark;
+}
+
+body {
+  transition: background var(--transition-med), color var(--transition-med);
+}
+
+/* Leve textura ambiente no modo escuro — dá ao backdrop-filter das
+   superfícies flutuantes (drawer, chat) algo pra desfocar de verdade,
+   e ecoa (com muito mais contenção) o fundo colorido da referência,
+   sem abrir mão de preto/branco como cores primárias. */
+:root[data-theme="dark"] body {
+  background:
+    radial-gradient(1100px 520px at 12% -10%, rgba(255,59,59,0.07), transparent 60%),
+    radial-gradient(900px 480px at 100% 0%, rgba(0,217,146,0.05), transparent 55%),
+    var(--bg);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]):not([data-theme="dark"]) body {
+    background:
+      radial-gradient(1100px 520px at 12% -10%, rgba(255,59,59,0.07), transparent 60%),
+      radial-gradient(900px 480px at 100% 0%, rgba(0,217,146,0.05), transparent 55%),
+      var(--bg);
+  }
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, .display {
+  font-family: var(--font-display);
+  font-weight: 700;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+.mono, .num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+a { color: var(--goodwe-red-deep); }
+
+/* Foco visível — acessibilidade */
+:focus-visible {
+  outline: 3px solid var(--goodwe-red);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+button, input, select {
+  font-family: inherit;
+  font-size: inherit;
+}
+
+button {
+  cursor: pointer;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  border-radius: var(--radius-sm);
+  padding: 0.55rem 1rem;
+  font-weight: 500;
+  transition: border-color 0.15s, background 0.15s, transform 0.15s, box-shadow 0.15s;
+}
+
+button:hover { border-color: var(--ink-low); background: var(--surface-2); transform: scale(1.02); }
+button:active { transform: scale(0.98); transition-duration: 0.1s; }
+
+button.primary {
+  background: var(--goodwe-red);
+  border-color: var(--goodwe-red);
+  color: #fff;
+  border-radius: var(--radius-pill);
+  padding: 0.6rem 1.3rem;
+}
+button.primary:hover { background: var(--goodwe-red-deep); border-color: var(--goodwe-red-deep); box-shadow: var(--glow-accent); }
+
+.hidden { display: none !important; }
+
+/* ---------------------------------------------------------------- */
+/* Alternância de tema claro/escuro                                  */
+/* ---------------------------------------------------------------- */
+
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.15rem;
+  height: 2.15rem;
+  padding: 0;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--ink-mid);
+  flex-shrink: 0;
+}
+.theme-toggle:hover { color: var(--ink); border-color: var(--ink-low); transform: scale(1.05); }
+.theme-toggle svg { width: 1.05rem; height: 1.05rem; stroke-width: 2; }
+.theme-toggle .icon-sun { display: none; }
+.theme-toggle .icon-moon { display: block; }
+:root[data-theme="dark"] .theme-toggle .icon-sun { display: block; }
+:root[data-theme="dark"] .theme-toggle .icon-moon { display: none; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]):not([data-theme="dark"]) .theme-toggle .icon-sun { display: block; }
+  :root:not([data-theme="light"]):not([data-theme="dark"]) .theme-toggle .icon-moon { display: none; }
+}
+
+/* ---------------------------------------------------------------- */
+/* Card genérico — borda fina + elevação suave em duas camadas       */
+/* ---------------------------------------------------------------- */
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 1.4rem 1.6rem;
+  box-shadow: var(--shadow-card);
+  backdrop-filter: var(--surface-blur);
+}
+
+.panel > h2, .panel > h3 {
+  display: flex;
+  align-items: center;
+  font-size: 0.95rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-mid);
+  margin-bottom: 0.85rem;
+}
+
+.panel-icon {
+  width: 1.05em;
+  height: 1.05em;
+  margin-right: 0.45rem;
+  color: var(--goodwe-red);
+  stroke-width: 2.25;
+  flex-shrink: 0;
+}
+
+/* ================================================================ */
+/* DASHBOARD DE GESTÃO                                                */
+/* ================================================================ */
+
+.dashboard {
+  max-width: 1360px;
+  margin: 0 auto;
+  padding: 2rem 2.25rem 6rem; /* folga embaixo: o botão flutuante do chat não cobre o fim da página */
+}
+
+.dash-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding-bottom: 1.4rem;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 1.75rem;
+}
+
+.dash-header .brand {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+}
+
+.dash-header .brand h1 {
+  font-size: 1.35rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.dash-header .brand h1 .cg-icon.brand-icon {
+  width: 1.05em;
+  height: 1.05em;
+}
+
+.dash-header .brand .site {
+  color: var(--ink-mid);
+  font-size: 0.9rem;
+}
+
+/* P0-10 — casca de navegação do dashboard (Visão Geral / Carregadores /
+   Clientes / Histórico / Relatórios / Configurações) */
+.dash-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 1.75rem;
+}
+.dash-nav a {
+  padding: 0.5rem 0.9rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--ink-mid);
+  text-decoration: none;
+  border: 1px solid transparent;
+}
+.dash-nav a:hover { background: var(--surface-2); }
+.dash-nav a.active {
+  color: var(--goodwe-red-deep);
+  background: rgba(255,0,0,0.06);
+  border-color: rgba(255,0,0,0.15);
+}
+
+.dash-nav-logout-form { margin-left: auto; }
+.dash-nav-logout {
+  padding: 0.5rem 0.9rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  font-weight: 600;
+  font-family: var(--font-body);
+  color: var(--critical);
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+.dash-nav-logout:hover { background: rgba(140,0,0,0.08); }
+
+.clock {
+  font-size: 0.85rem;
+  color: var(--ink-low);
+}
+
+/* O botão de tema é sempre o último filho de .dash-header — em 2 das 6
+   páginas ele vem depois do relógio, nas outras 4 vem direto depois da
+   marca. margin-left:auto no primeiro dos dois "empurra" o grupo
+   (relógio+botão, ou só o botão) pra direita, sem precisar tocar no
+   HTML de novo pra normalizar a estrutura. */
+.dash-header .theme-toggle { margin-left: auto; }
+.dash-header .clock { margin-left: auto; }
+.dash-header .clock + .theme-toggle { margin-left: 0.9rem; }
+
+/* ---- Diagrama unifilar ---- */
+
+.unifilar-panel { margin-bottom: 1.75rem; }
+
+.unifilar-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin-bottom: 0.5rem;
+}
+
+.unifilar-summary .label {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-mid);
+  font-size: 0.8rem;
+}
+
+/* Hierarquia: % de utilização é o número herói (grande, mono, peso alto);
+   kW alocado/limite fica como detalhe de apoio, menor e mais discreto. */
+.unifilar-hero {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+/* Fallback pra motores de renderização sem suporte a `gap` em flexbox
+   (ex: wkhtmltopdf/WebKit antigo) — margin não conflita com gap em
+   navegadores modernos, só adiciona segurança redundante. */
+.unifilar-hero > * + * { margin-left: 0.15rem; }
+.kw-detail { margin-left: 1rem; }
+
+.pct-hero {
+  font-size: 2.5rem;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--ink);
+}
+:root[data-theme="dark"] .pct-hero { text-shadow: 0 0 32px rgba(255,255,255,0.18); }
+:root[data-theme="dark"] .unifilar-summary.level-warning .pct-hero { text-shadow: 0 0 32px rgba(255,182,72,0.35); }
+:root[data-theme="dark"] .unifilar-summary.level-critical .pct-hero { text-shadow: 0 0 32px rgba(255,92,92,0.4); }
+.unifilar-summary.level-warning .pct-hero { color: var(--amber); }
+.unifilar-summary.level-critical .pct-hero { color: var(--critical); }
+
+.kw-detail { display: flex; align-items: baseline; gap: 0.4rem; flex-wrap: wrap; }
+.kw-detail .num { font-size: 1rem; font-weight: 600; color: var(--ink-mid); }
+.contracted-note { color: var(--ink-low); font-size: 0.78rem; }
+
+.level-badge {
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  margin-left: auto;
+}
+.level-warning .level-badge, .unifilar-summary.level-warning .level-badge {
+  color: var(--amber); background: rgba(245,166,35,0.14);
+}
+.level-critical .level-badge, .unifilar-summary.level-critical .level-badge {
+  color: var(--critical); background: rgba(140,0,0,0.1);
+}
+
+#unifilar { width: 100%; height: auto; display: block; }
+
+.bus-track { fill: var(--surface-2); }
+.bus-fill { fill: var(--goodwe-red); transition: width 0.4s ease-out, fill 0.2s ease-out; }
+.bus-fill.level-warning { fill: var(--amber); }
+.bus-fill.level-critical { fill: var(--critical); }
+.bus-safety-marker { stroke: var(--amber); stroke-width: 2; stroke-dasharray: 4 3; }
+
+.riser, .rail { stroke: var(--line); stroke-width: 2.5; }
+
+.branch { stroke: var(--line); stroke-width: 2; transition: stroke var(--transition-med); }
+.branch.energized { stroke: var(--goodwe-red); }
+
+.node {
+  stroke-width: 2.5;
+  transition: fill var(--transition-med), stroke var(--transition-med), transform var(--transition-fast), filter var(--transition-fast);
+  cursor: pointer;
+  transform-box: fill-box; /* sem isso, scale() gira em torno da origem do SVG, não do próprio nó */
+  transform-origin: center;
+}
+.node.free { fill: var(--surface); stroke: var(--available); }
+.node.occupied { fill: var(--goodwe-red); stroke: var(--goodwe-red-deep); }
+.node.occupied.pulse { animation: node-pulse 1.8s ease-in-out infinite; }
+
+.node:hover, .node:focus-visible {
+  transform: scale(1.18);
+  filter: drop-shadow(0 3px 8px rgba(23,24,26,0.3));
+}
+.node:active { transform: scale(1.05); transition-duration: 0.1s; }
+
+/* Camada de demo — manutenção/erro (P2-12), independente de LIVRE/OCUPADO.
+   Cor nunca sozinha: o texto embaixo do nó já vira "MANUT."/"ERRO". */
+.node.maintenance { fill: var(--surface-2); stroke: var(--ink-low); stroke-dasharray: 3 2; }
+.node.fault { fill: var(--critical); stroke: var(--goodwe-red-deep); }
+.node.fault.pulse { animation: node-pulse 1.8s ease-in-out infinite; }
+
+@keyframes node-pulse {
+  0%, 100% { filter: drop-shadow(0 0 0 rgba(255,0,0,0)); }
+  50% { filter: drop-shadow(0 0 6px rgba(255,0,0,0.55)); }
+}
+
+/* P1-1 — animação 2D do "cabo carregando" (mesma técnica do bus-fill /
+   node-pulse acima: SVG + CSS, sem biblioteca nova). Reaproveitada na
+   tela do cliente (carregando.html) e no drawer de detalhe do
+   dashboard (charger_details.html) quando o carregador está OCUPADO. */
+.cable-anim-wrap { display: flex; flex-direction: column; align-items: center; gap: 0.35rem; margin: 0.75rem 0 1.1rem; }
+.cable-anim-wrap svg { width: 100%; max-width: 260px; height: auto; display: block; }
+.cable-charger-icon rect, .cable-car-icon rect, .cable-car-icon circle {
+  fill: var(--surface-2);
+  stroke: var(--ink-mid);
+  stroke-width: 1.5;
+}
+.cable-charger-icon .cable-icon-detail { fill: var(--ink-low); stroke: none; }
+
+.cable-path { fill: none; stroke: var(--line); stroke-width: 3; stroke-linecap: round; }
+.cable-path.active {
+  stroke: var(--goodwe-red);
+  stroke-dasharray: 9 7;
+  animation: cable-flow 1.6s linear infinite;
+}
+@keyframes cable-flow {
+  to { stroke-dashoffset: -32; }
+}
+.cable-power-label { font-size: 0.78rem; color: var(--ink-mid); }
+
+.node-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  fill: var(--ink-mid);
+  text-anchor: middle;
+}
+.node-kw {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  fill: var(--ink-low);
+  text-anchor: middle;
+}
+
+/* ---- Grid de conteúdo ---- */
+
+.dash-grid {
+  display: grid;
+  grid-template-columns: 1.3fr 1fr;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+/* Coluna dentro do .dash-grid que empilha mais de um painel (usado na Visão
+   Geral: Carregadores + Previsão de demanda, ambos abaixo um do outro na
+   coluna esquerda) — mesmo gap do .dash-grid, pra manter o espaçamento
+   visualmente consistente entre todos os blocos da tela. */
+.dash-grid-col {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* Pilha vertical de painéis full-width (ex.: Relatórios) — .dash-grid não
+   serve aqui porque colocaria os dois lado a lado; isto só empilha com
+   um gap consistente com o resto do dashboard (1.75rem). */
+.dash-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+}
+
+@media (max-width: 980px) {
+  .dash-grid { grid-template-columns: 1fr; }
+}
+
+/* Tabela de carregadores — linhas como "cards" independentes (border-
+   collapse impediria box-shadow/border-radius por linha, então cada
+   uma vira sua própria caixa com espaçamento entre elas). */
+
+.charger-table { width: 100%; border-collapse: separate; border-spacing: 0 0.5rem; font-size: 0.88rem; margin-top: -0.5rem; }
+.charger-table th {
+  text-align: left;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink-low);
+  border-bottom: 1px solid var(--line);
+  padding: 0.4rem 0.5rem 0.6rem;
+}
+.charger-table td {
+  padding: 0.65rem 0.75rem;
+  background: var(--surface);
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+.charger-table td:first-child { border-left: 1px solid var(--line); border-top-left-radius: var(--radius-sm); border-bottom-left-radius: var(--radius-sm); }
+.charger-table td:last-child { border-right: 1px solid var(--line); border-top-right-radius: var(--radius-sm); border-bottom-right-radius: var(--radius-sm); }
+
+.charger-row {
+  cursor: pointer;
+  box-shadow: var(--shadow-card);
+  transition: transform var(--transition-lift), box-shadow var(--transition-lift);
+}
+.charger-row:hover, .charger-row:focus-visible {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-card-hover);
+}
+.charger-row:hover td, .charger-row:focus-visible td { background: var(--bg-soft); }
+.charger-row:active { transform: translateY(-1px) scale(0.995); }
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+}
+.status-pill.livre { color: var(--available); background: rgba(0,166,122,0.1); }
+.status-pill.ocupado { color: var(--goodwe-red-deep); background: rgba(255,0,0,0.08); }
+
+.flag-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  margin-left: 0.35rem;
+}
+.flag-badge.manutencao { color: var(--ink-mid); background: var(--surface-2); }
+.flag-badge.erro { color: #fff; background: var(--critical); }
+
+/* Painel de detalhes — agora um drawer lateral fixo (não abre nova aba,
+   preserva a conexão WebSocket ativa). */
+.details-panel {
+  padding: 1.1rem 1.25rem 2rem;
+  font-size: 0.88rem;
+}
+.details-panel .close-btn {
+  float: right;
+  border: none;
+  background: none;
+  color: var(--ink-low);
+  font-size: 0.8rem;
+  padding: 0.1rem 0.3rem;
+}
+.details-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(23,24,26,0.35);
+  backdrop-filter: blur(2px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--transition-med);
+  z-index: 40;
+}
+.details-backdrop.open { opacity: 1; pointer-events: auto; }
+
+.details-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  height: 100vh;
+  width: min(420px, 100vw);
+  background: var(--surface);
+  border-left: 1px solid var(--line);
+  box-shadow: var(--shadow-lg);
+  overflow-y: auto;
+  transform: translateX(100%);
+  visibility: hidden;
+  transition: transform var(--transition-med), visibility 0s linear var(--transition-med);
+  z-index: 41;
+}
+.details-drawer.open {
+  transform: translateX(0);
+  visibility: visible;
+  transition: transform var(--transition-med);
+}
+.status-badges { margin: 0.5rem 0 0.25rem; display: flex; align-items: center; gap: 0.3rem; }
+.details-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.4rem 1rem; margin-top: 0.85rem; }
+.details-grid dt { color: var(--ink-mid); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; }
+.details-grid dd { margin: 0; font-family: var(--font-mono); font-weight: 600; }
+
+/* Controles de demo dentro do drawer (P2-12/13) — separados visualmente
+   do restante para deixar claro que não fazem parte do sistema real. */
+.demo-controls {
+  margin-top: 1.1rem;
+  padding-top: 0.9rem;
+  border-top: 1px dashed var(--line);
+}
+.demo-controls-title {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink-low);
+  margin-bottom: 0.5rem;
+}
+.demo-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.5rem;
+}
+.demo-row > span:first-child { color: var(--ink-mid); font-size: 0.82rem; min-width: 7.5rem; }
+.demo-flag-buttons { display: flex; gap: 0.35rem; flex-wrap: wrap; }
+.demo-flag-buttons button, .demo-row button { font-size: 0.78rem; padding: 0.35rem 0.65rem; }
+
+.charger-events { margin-top: 1.1rem; padding-top: 0.9rem; border-top: 1px dashed var(--line); }
+.charger-events-title {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink-low);
+  margin-bottom: 0.5rem;
+}
+.charger-events-list { list-style: none; margin: 0; padding: 0; font-size: 0.8rem; }
+.charger-events-list li { padding: 0.25rem 0; border-bottom: 1px dashed var(--line); }
+.charger-events-list li:last-child { border-bottom: none; }
+.charger-events-list .ts { color: var(--ink-low); font-family: var(--font-mono); font-size: 0.72rem; margin-right: 0.3rem; }
+.charger-events-list .empty { color: var(--ink-low); font-style: italic; }
+
+/* Faturamento */
+
+/* Número-herói do painel de faturamento: o TOTAL FATURADO NO DIA. (Antes
+   mostrava a tarifa do kWh aqui — a tarifa agora é uma linha comum abaixo.) */
+.billing-hero-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-low); }
+.billing-hero { font-size: 1.6rem; font-weight: 700; margin-bottom: 0.35rem; }
+.billing-row { display: flex; justify-content: space-between; padding: 0.35rem 0; border-bottom: 1px dashed var(--line); font-size: 0.88rem; }
+.billing-row:last-of-type { border-bottom: none; }
+.billing-row .val { font-family: var(--font-mono); font-weight: 600; }
+.billing-note { font-size: 0.72rem; color: var(--ink-low); margin-top: -0.1rem; margin-bottom: 0.4rem; }
+
+#profit-curve { width: 100%; height: 90px; display: block; margin-top: 0.6rem; }
+.profit-gradient-start { stop-color: var(--goodwe-red); stop-opacity: 0.25; }
+.profit-gradient-end { stop-color: var(--goodwe-red); stop-opacity: 0; }
+.profit-area { transition: opacity var(--transition-med); }
+.profit-line { fill: none; stroke: var(--goodwe-red); stroke-width: 2; }
+.profit-baseline { stroke: var(--line); stroke-width: 1; }
+.profit-marker { fill: var(--goodwe-red-deep); }
+.profit-caption { font-size: 0.72rem; color: var(--ink-low); margin-top: 0.3rem; }
+
+/* Assistente IA — widget flutuante, disponível em qualquer tela
+   (dashboard e app do cliente), não preso a uma coluna de layout. */
+
+.chat-widget {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column-reverse; /* fab (1º no DOM) fica ancorado embaixo; painel abre para cima */
+  align-items: flex-end;
+  gap: 0.75rem;
+  transition: opacity var(--transition-fast);
+}
+/* O drawer de detalhes (P0-1) também é ancorado à direita em tela cheia
+   — com o widget de volta ao canto inferior direito (posição pedida),
+   os dois colidiriam se abertos ao mesmo tempo. Em vez de reposicionar
+   o widget, ele se retrai enquanto o drawer está aberto (mesmo padrão
+   de Intercom/Drift ao lado de um painel modal) e volta ao fechar. */
+.chat-widget.suppressed { opacity: 0; pointer-events: none; }
+
+/* O contêiner do widget é uma caixa fixa de ~340x510px no canto inferior
+   direito que existe MESMO com o painel fechado — sem isto, ele engolia os
+   cliques de qualquer botão/link sob essa área invisível (ex.: os lápis de
+   editar, alinhados à direita). Agora o contêiner é "transparente" ao mouse e
+   só o botão redondo (e o painel, quando aberto — ver .chat-panel.open) recebem clique. */
+.chat-widget { pointer-events: none; }
+.chat-fab { pointer-events: auto; }
+.chat-widget.suppressed .chat-fab { pointer-events: none; }
+
+.chat-fab {
+  width: 3.4rem;
+  height: 3.4rem;
+  border-radius: 999px;
+  background: var(--goodwe-red);
+  border-color: var(--goodwe-red);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8px 20px rgba(255,0,0,0.30);
+  padding: 0;
+  transition: background var(--transition-fast), border-color var(--transition-fast), transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), box-shadow var(--transition-fast);
+}
+.chat-fab svg { width: 1.6rem; height: 1.6rem; }
+.chat-fab:hover {
+  background: var(--goodwe-red-deep);
+  border-color: var(--goodwe-red-deep);
+  transform: scale(1.06);
+  box-shadow: 0 10px 26px rgba(255,0,0,0.36);
+}
+.chat-fab:active { transform: scale(0.96); }
+
+.chat-panel {
+  width: min(340px, calc(100vw - 2.5rem));
+  max-height: min(70vh, 520px);
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  /* Sombra forte de propósito — o painel precisa parecer flutuando
+     SOBRE o resto da página, não uma seção a mais dela. */
+  box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+  overflow: hidden;
+  /* Estado fechado: display continua "flex" (nunca "none") para que
+     transform/opacity possam animar de verdade — display:none não é
+     animável e era por isso que o widget "aparecia" sem transição
+     nenhuma. */
+  transform-origin: bottom right;
+  transform: scale(0.92) translateY(10px);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: transform var(--transition-med), opacity var(--transition-med), visibility 0s linear var(--transition-med);
+}
+.chat-panel.open {
+  transform: scale(1) translateY(0);
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transition: transform var(--transition-med), opacity var(--transition-med);
+}
+.chat-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.7rem 0.9rem;
+  border-bottom: 1px solid var(--line);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+.chat-panel-header .close-btn { border: none; background: none; color: var(--ink-low); padding: 0.1rem 0.3rem; }
+
+.chat-log {
+  height: 220px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem 0.9rem 0.25rem;
+}
+.chat-msg { max-width: 92%; padding: 0.5rem 0.7rem; border-radius: var(--radius-sm); font-size: 0.85rem; line-height: 1.35; }
+.chat-msg.user { align-self: flex-end; background: var(--surface-2); }
+.chat-msg.assistant { align-self: flex-start; background: rgba(255,0,0,0.06); border: 1px solid rgba(255,0,0,0.15); }
+
+.chat-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.6rem 0.9rem 0.9rem;
+  border-top: 1px solid var(--line);
+}
+.chat-menu button { text-align: left; font-size: 0.82rem; }
+
+/* Console de eventos — referência intencional ao terminal original */
+
+.events-console {
+  background: var(--console-bg);
+  color: var(--console-text);
+  border-radius: var(--radius);
+  padding: 1.1rem 1.3rem;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  max-height: 220px;
+  overflow-y: auto;
+  margin-top: 1.75rem;
+  box-shadow: var(--shadow-card);
+}
+.events-console .title {
+  color: var(--ink-low);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.7rem;
+  margin-bottom: 0.5rem;
+}
+.events-console ul { list-style: none; margin: 0; padding: 0; }
+.events-console li { padding: 0.15rem 0; white-space: pre-wrap; word-break: break-word; }
+.events-console .ts { color: var(--ink-low); }
+.events-console .type-VEHICLE_CONNECTED, .events-console .type-CHARGER_REGISTERED { color: var(--available); }
+.events-console .type-VEHICLE_DISCONNECTED { color: var(--amber); }
+.events-console .type-POWER_REDISTRIBUTED { color: #8FA3FF; }
+.events-console .type-ERROR { color: var(--goodwe-red); }
+.events-console .type-SIMULATION_START, .events-console .type-SIMULATION_END { color: #fff; font-weight: 600; }
+
+/* ================================================================ */
+/* APP DO CLIENTE                                                     */
+/* ================================================================ */
+
+.cliente-screen {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-soft);
+  padding: 1.5rem 1.25rem;
+}
+
+.cliente-card {
+  width: 100%;
+  max-width: 380px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  padding: 2rem 1.75rem 2.25rem;
+  text-align: center;
+  box-shadow: var(--shadow-card), var(--shadow-lg);
+}
+
+.cliente-brand-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  margin-bottom: 0.25rem;
+}
+.cliente-brand-row .theme-toggle {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.cliente-brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  color: var(--ink-mid);
+  font-size: 0.85rem;
+}
+
+.cliente-card h1 {
+  font-size: 1.15rem;
+  margin-bottom: 1.5rem;
+}
+.cliente-card .vaga { color: var(--ink-mid); font-weight: 500; }
+
+.ring-wrap { position: relative; width: 220px; height: 220px; margin: 0 auto 1.5rem; }
+#energy-ring { width: 100%; height: 100%; }
+.ring-track { fill: none; stroke: var(--surface-2); stroke-width: 14; }
+.ring-fill {
+  fill: none;
+  stroke: var(--goodwe-red);
+  stroke-width: 14;
+  stroke-linecap: round;
+  transition: stroke-dashoffset var(--transition-med);
+}
+.ring-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.ring-center .kw-value { font-family: var(--font-mono); font-size: 1.6rem; font-weight: 600; }
+.ring-center .kw-max { font-family: var(--font-mono); font-size: 0.85rem; color: var(--ink-low); }
+
+.cliente-stats { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1.25rem; }
+.stat-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.7rem 0.95rem;
+  background: var(--bg-soft);
+  border-radius: var(--radius-sm);
+  font-size: 0.9rem;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 4px 10px rgba(0,0,0,0.05);
+}
+.stat-row .label { display: flex; align-items: center; color: var(--ink-mid); }
+.stat-row .val { font-family: var(--font-mono); font-weight: 600; }
+
+.cliente-status {
+  font-size: 0.9rem;
+  font-weight: 500;
+  padding: 0.6rem;
+  border-radius: var(--radius-sm);
+}
+.cliente-status.ocupado { color: var(--goodwe-red-deep); background: rgba(255,0,0,0.06); }
+.cliente-status.livre { color: var(--available); background: rgba(0,166,122,0.08); }
+
+/* ================================================================ */
+/* APP DO CLIENTE — autenticação, fluxo "carregar veículo"           */
+/* ================================================================ */
+
+.cliente-card.wide { max-width: 460px; text-align: left; }
+.cliente-card.wide h1 { text-align: center; }
+
+/* Histórico do cliente: 6 colunas (Data, Veículo, Vaga, Energia, Duração,
+   Valor) não cabiam nos 460px do .wide sem rolagem horizontal — mais
+   largura aqui pra tabela caber inteira sem precisar da barra. */
+.cliente-card.wide.historico-card { max-width: 640px; }
+
+.auth-form, .wizard-form { display: flex; flex-direction: column; gap: 0.9rem; text-align: left; }
+
+.form-field { display: flex; flex-direction: column; gap: 0.3rem; }
+.form-field label { font-size: 0.78rem; font-weight: 600; color: var(--ink-mid); text-transform: uppercase; letter-spacing: 0.04em; }
+
+input[type="text"], input[type="password"], input[type="email"], input[type="number"], select {
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink);
+  width: 100%;
+  transition: border-color 0.15s;
+}
+input:focus, select:focus { border-color: var(--goodwe-red); outline: none; }
+
+.field-error {
+  background: rgba(140,0,0,0.08);
+  color: var(--critical);
+  border: 1px solid rgba(140,0,0,0.2);
+  border-radius: var(--radius-sm);
+  padding: 0.6rem 0.8rem;
+  font-size: 0.85rem;
+  margin-bottom: 0.9rem;
+  text-align: left;
+}
+
+.link-row { margin-top: 1.1rem; font-size: 0.85rem; color: var(--ink-mid); text-align: center; }
+.link-row a { font-weight: 600; text-decoration: none; }
+.link-row a:hover { text-decoration: underline; }
+
+.banner-info {
+  background: var(--bg-soft);
+  border: 1px dashed var(--line);
+  border-radius: var(--radius-sm);
+  padding: 0.65rem 0.85rem;
+  font-size: 0.8rem;
+  color: var(--ink-mid);
+  margin: 0.75rem 0;
+}
+.banner-warning {
+  background: rgba(245,166,35,0.1);
+  border: 1px solid rgba(245,166,35,0.3);
+  color: var(--ink);
+  border-radius: var(--radius-sm);
+  padding: 0.65rem 0.85rem;
+  font-size: 0.82rem;
+  margin: 0.75rem 0;
+}
+
+/* Home do cliente */
+.home-greeting { font-size: 1.3rem; margin-bottom: 1.5rem; text-align: center; }
+.home-menu { display: flex; flex-direction: column; gap: 0.65rem; }
+.home-menu a, .home-menu button {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink);
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 0.92rem;
+  text-align: left;
+  width: 100%;
+  box-shadow: var(--shadow-card);
+  transition: transform var(--transition-lift), box-shadow var(--transition-lift);
+}
+.home-menu a:hover, .home-menu button:hover { transform: translateY(-2px); box-shadow: var(--shadow-card-hover); background: var(--surface); }
+.home-menu .logout-btn { color: var(--critical); box-shadow: none; border-style: dashed; }
+
+/* Meus veículos — lista com opção de remover + form de adicionar */
+.vehicle-list { display: flex; flex-direction: column; gap: 0.6rem; margin: 1rem 0; }
+.vehicle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.7rem 0.95rem;
+  background: var(--bg-soft);
+  border-radius: var(--radius-sm);
+}
+.vehicle-info { display: flex; flex-direction: column; gap: 0.15rem; }
+.vehicle-modelo { font-weight: 500; font-size: 0.92rem; }
+.vehicle-placa { color: var(--ink-mid); font-size: 0.8rem; }
+.vehicle-remove-btn {
+  border: 1px solid rgba(140,0,0,0.25);
+  color: var(--critical);
+  background: transparent;
+  border-radius: var(--radius-sm);
+  padding: 0.4rem 0.7rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  font-family: var(--font-body);
+  cursor: pointer;
+}
+.vehicle-remove-btn:hover { background: rgba(140,0,0,0.08); }
+.vehicle-add-title { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-mid); margin: 1.4rem 0 0.9rem; }
+
+/* Meu perfil — zona de risco (excluir conta) */
+.danger-zone { margin-top: 1.6rem; padding-top: 1.2rem; border-top: 1px dashed var(--line); }
+.btn-danger {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid var(--critical);
+  color: var(--critical);
+  background: transparent;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.btn-danger:hover { background: rgba(140,0,0,0.08); }
+
+/* Resumo / lista chave-valor centralizada */
+.summary-list { display: flex; flex-direction: column; gap: 0; margin: 1rem 0; text-align: left; }
+.summary-list .row { display: flex; justify-content: space-between; padding: 0.55rem 0; border-bottom: 1px dashed var(--line); font-size: 0.9rem; }
+.summary-list .row:last-child { border-bottom: none; }
+.summary-list .row .val { font-family: var(--font-mono); font-weight: 600; }
+
+/* Opções de pagamento — cards selecionáveis */
+.pay-options { display: flex; flex-direction: column; gap: 0.6rem; margin: 1rem 0; }
+.pay-option {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.pay-option:has(input:checked) { border-color: var(--goodwe-red); background: rgba(255,0,0,0.04); }
+.pay-option input { width: auto; margin: 0; }
+.pay-option .pay-label { font-weight: 500; font-size: 0.9rem; }
+
+/* P0-1 (veículo cadastrado inline) e P0-2 (meta por tempo OU energia) —
+   mostra/esconde os campos certos com :has(), sem nenhum JS novo (mesma
+   técnica já usada em .pay-option acima). */
+.novo-veiculo-fields { display: none; }
+.veiculo-select-field:has(#placa option[value="__novo__"]:checked) ~ .novo-veiculo-fields { display: flex; flex-direction: column; gap: 0.5rem; }
+
+.goal-field-energia { display: none; }
+.goal-mode-wrap:has(#modo-energia:checked) ~ .goal-field-tempo { display: none; }
+.goal-mode-wrap:has(#modo-energia:checked) ~ .goal-field-energia { display: flex; }
+
+.wizard-actions { display: flex; gap: 0.6rem; margin-top: 1.25rem; }
+.wizard-actions button, .wizard-actions a.btn-link {
+  flex: 1;
+  text-align: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-link {
+  cursor: pointer;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  border-radius: var(--radius-sm);
+  padding: 0.55rem 1rem;
+  font-weight: 500;
+  text-decoration: none;
+  transition: border-color 0.15s, background 0.15s, transform 0.15s;
+}
+.btn-link:hover { border-color: var(--ink-low); background: var(--surface-2); transform: scale(1.02); }
+.btn-link.primary {
+  background: var(--goodwe-red);
+  border-color: var(--goodwe-red);
+  color: #fff;
+  border-radius: var(--radius-pill);
+  padding: 0.6rem 1.3rem;
+}
+.btn-link.primary:hover { background: var(--goodwe-red-deep); border-color: var(--goodwe-red-deep); box-shadow: var(--glow-accent); }
+
+/* Tela "carregando" — estende .cliente-stats com os novos campos */
+.cliente-establishment { text-align: center; color: var(--ink-mid); font-size: 0.85rem; margin-bottom: 0.5rem; }
+
+/* Tela de conclusão */
+.receipt-icon { display: flex; justify-content: center; margin-bottom: 0.6rem; }
+.receipt-icon .cg-icon { width: 2.9rem; height: 2.9rem; stroke-width: 2; }
+
+/* Tabela simples (histórico) */
+.table-simple { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.table-simple th { text-align: left; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-low); border-bottom: 1px solid var(--line); padding: 0.4rem 0.5rem; }
+.table-simple td { padding: 0.5rem; border-bottom: 1px dashed var(--line); font-family: var(--font-mono); }
+.empty-state { color: var(--ink-low); font-style: italic; text-align: center; padding: 1rem 0; }
+
+/* Tela "pagar com Pix" (PAYMENT_MODE=mercadopago) */
+.pix-qr-wrap {
+  display: flex;
+  justify-content: center;
+  padding: 1rem;
+  background: var(--bg-soft);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  margin: 1rem 0;
+}
+.pix-qr { width: 200px; height: 200px; image-rendering: pixelated; }
+.pix-qr-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: var(--ink-low);
+  font-size: 0.82rem;
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+}
+
+.pix-copy-row { display: flex; gap: 0.5rem; }
+.pix-copy-row input { flex: 1; font-size: 0.72rem; }
+.pix-copy-row button { flex-shrink: 0; }
+
+.pix-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.7rem;
+  margin: 1rem 0;
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+.pix-status.pending { background: rgba(245,166,35,0.1); color: var(--ink); }
+.pix-status.approved { background: rgba(0,166,122,0.1); color: var(--available); }
+.pix-status.error { background: rgba(140,0,0,0.08); color: var(--critical); }
+
+.pix-status-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--amber);
+  animation: pix-dot-pulse 1.4s ease-in-out infinite;
+}
+@keyframes pix-dot-pulse {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 1; }
+}
+
+/* ================================================================ */
+/* Responsivo geral / acessibilidade                                  */
+/* ================================================================ */
+
+@media (max-width: 640px) {
+  .dashboard { padding: 1rem 0.85rem 6rem; }
+  .dash-header { flex-direction: column; align-items: flex-start; }
+  .details-grid { grid-template-columns: 1fr; }
+  .charger-table { display: block; overflow-x: auto; }
+}
+
+/* ================================================================ */
+/* Previsão de demanda (IA) — gráfico de barras, próximas 24h         */
+/* ================================================================ */
+
+.forecast-chart {
+  position: relative;
+  margin-top: 0.6rem;
+  padding-top: 0.4rem;
+}
+
+.forecast-limit-line {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  border-top: 1px dashed var(--ink-low);
+  font-size: 0.68rem;
+  color: var(--ink-low);
+  text-align: right;
+}
+.forecast-limit-line span {
+  background: var(--surface);
+  padding-left: 0.4rem;
+  position: relative;
+  top: -0.55rem;
+}
+
+.forecast-bars {
+  display: flex;
+  align-items: flex-end;
+  height: 120px;
+  gap: 3px;
+  border-bottom: 1px solid var(--line);
+}
+
+.forecast-bar-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  height: 100%;
+}
+
+.forecast-bar {
+  width: 100%;
+  border-radius: 3px 3px 0 0;
+  min-height: 2px;
+  transition: height var(--transition-med);
+}
+.forecast-bar.ok { background: var(--available); }
+.forecast-bar.warn { background: var(--amber); }
+.forecast-bar.critical { background: var(--critical); }
+
+.forecast-bar-label {
+  font-size: 0.62rem;
+  color: var(--ink-low);
+  margin-top: 0.3rem;
+  font-family: var(--font-mono);
+}
+
+.forecast-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-top: 0.7rem;
+  font-size: 0.76rem;
+  color: var(--ink-mid);
+}
+.forecast-legend .dot {
+  display: inline-block;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  margin-right: 0.35rem;
+}
+.forecast-legend .dot.ok { background: var(--available); }
+.forecast-legend .dot.warn { background: var(--amber); }
+.forecast-legend .dot.critical { background: var(--critical); }
+
+/* ---------------------------------------------------------------- */
+/* Ícones do app do cliente — SVG de traço em vermelho (substituem os  */
+/* emojis). Mesma linguagem da dashboard: .panel-icon (Lucide, 2.25).   */
+/* ---------------------------------------------------------------- */
+
+.cg-icon {
+  width: 1.15em;
+  height: 1.15em;
+  flex-shrink: 0;
+  color: var(--goodwe-red);
+}
+.cliente-brand .cg-icon { width: 1.05rem; height: 1.05rem; }
+.cliente-brand span { font-weight: 600; letter-spacing: 0.01em; }
+
+/* Menu inicial: ícone num "chip" à esquerda, texto ao lado */
+.home-menu a .cg-icon { width: 1.3rem; height: 1.3rem; }
+
+/* Opções selecionáveis (meta por tempo/energia, forma de pagamento) */
+.pay-option .pay-label { display: inline-flex; align-items: center; gap: 0.55rem; }
+
+/* Avisos com ícone antes do texto */
+.banner-info.with-icon, .banner-warning.with-icon { display: flex; align-items: flex-start; gap: 0.55rem; }
+.banner-info.with-icon .cg-icon, .banner-warning.with-icon .cg-icon { margin-top: 0.05rem; }
+.pix-status.error .cg-icon { color: var(--critical); }
+.chat-panel-header .close-btn { display: inline-flex; align-items: center; justify-content: center; }
+.chat-panel-header .close-btn .cg-icon { width: 1rem; height: 1rem; color: currentColor; }
+
+/* ---------------------------------------------------------------- */
+/* Informação + ícone de editar (Configurações e Meu perfil)          */
+/* Valor como texto fixo; lápis no canto direito libera a edição.     */
+/* ---------------------------------------------------------------- */
+
+.edit-form { display: flex; flex-direction: column; text-align: left; }
+.edit-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.7rem 0;
+  border-bottom: 1px dashed var(--line);
+}
+.edit-row:last-child, .edit-row:has(+ .edit-actions) { border-bottom: none; } /* sem tracejado sobrando antes de Salvar/Cancelar */
+.edit-row-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.2rem; }
+.edit-label { font-size: 0.72rem; font-weight: 600; color: var(--ink-low); text-transform: uppercase; letter-spacing: 0.04em; }
+.edit-value { display: flex; align-items: baseline; gap: 0.4rem; min-width: 0; }
+.edit-static { font-size: 0.95rem; color: var(--ink); overflow-wrap: anywhere; }
+.edit-suffix { font-size: 0.85rem; color: var(--ink-mid); white-space: nowrap; }
+.edit-hint { font-size: 0.72rem; color: var(--ink-low); }
+
+/* Estado padrão: o <input> readonly se comporta e parece um texto comum. */
+.edit-row input[readonly] {
+  border-color: transparent;
+  background: transparent;
+  padding: 0.15rem 0;
+  cursor: default;
+  text-overflow: ellipsis;
+  box-shadow: none;
+}
+.edit-row input[readonly]:focus { border-color: transparent; }
+.edit-row input[type="number"][readonly] { -moz-appearance: textfield; appearance: textfield; }
+.edit-row input[type="number"][readonly]::-webkit-inner-spin-button,
+.edit-row input[type="number"][readonly]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+/* Em edição: volta a parecer um campo de formulário normal. */
+.edit-row.editing input { padding: 0.5rem 0.65rem; border-color: var(--line); background: var(--surface); }
+.edit-row.editing input:focus { border-color: var(--goodwe-red); }
+.edit-row.editing .edit-value { flex: 1; }
+.edit-row.editing .edit-value input { flex: 1; min-width: 0; width: 100% !important; } /* !important: vence o width em "ch" do modo leitura */
+
+.edit-btn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--ink-mid);
+}
+.edit-btn svg { width: 1rem; height: 1rem; }
+.edit-btn:hover { color: var(--goodwe-red); border-color: var(--goodwe-red); background: transparent; }
+.edit-btn[hidden] { display: none; }
+
+/* "Alterar senha": só um link (é um <button> por causa do form="" separado). */
+.edit-link {
+  flex-shrink: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--goodwe-red);
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: none;
+  border-radius: 0;
+}
+.edit-link:hover { background: none; border: none; transform: none; text-decoration: underline; }
+
+.edit-actions { display: flex; gap: 0.6rem; margin-top: 0.9rem; }
+.edit-actions[hidden] { display: none; }
+.btn-secondary { border-radius: var(--radius-pill); padding: 0.6rem 1.3rem; }
+
+.edit-subtitle {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink-mid);
+  margin: 1.4rem 0 0.2rem;
+  padding-top: 1.1rem;
+  border-top: 1px solid var(--line);
+}
+.edit-subtitle:first-of-type { margin-top: 0.6rem; }
+.edit-derived { font-size: 0.8rem; color: var(--ink-mid); margin-top: 0.4rem; }
+.edit-derived b { font-family: var(--font-mono); color: var(--ink); }
+
+/* Botão "Voltar" do app do cliente — canto superior esquerdo do cartão, na
+   mesma linha do logo e espelhando o botão de tema (canto direito). */
+.cliente-back {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  height: 2.15rem;
+  padding: 0 0.85rem 0 0.65rem;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--ink-mid);
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: color 0.15s, border-color 0.15s, transform 0.15s;
+}
+.cliente-back svg { width: 0.95rem; height: 0.95rem; }
+.cliente-back:hover { color: var(--ink); border-color: var(--ink-low); transform: translateY(-50%) scale(1.04); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+  .node.occupied.pulse, .node.fault.pulse { animation: none; }
+  .cable-path.active { animation: none; }
+}

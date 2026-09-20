@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ChargeGrid — Meus veículos</title>
+<link rel="icon" href="data:,">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/style.css">
+<script>(function(){try{var t=localStorage.getItem("cg-theme");if(t==="light"||t==="dark"){document.documentElement.setAttribute("data-theme",t);}}catch(e){}})();</script>
+</head>
+<body class="cliente-screen">
+
+  {% from "partials/back_button.html" import back_button %}
+
+  {% from "partials/icons.html" import icon %}
+
+  <main class="cliente-card wide">
+    <div class="cliente-brand-row">
+      {{ back_button("/cliente/home", "Voltar") }}
+      <div class="cliente-brand">{{ icon("zap", filled=True) }}<span>ChargeGrid</span></div>
+      {% include "partials/theme_toggle.html" %}
+    </div>
+    <h1>Meus veículos</h1>
+
+    {% if erro == "placa_vazia" %}<div class="field-error">Informe a placa do veículo.</div>{% endif %}
+
+    {% if vehicles %}
+    <div class="vehicle-list">
+      {% for v in vehicles %}
+      <div class="vehicle-row">
+        <div class="vehicle-info">
+          <span class="vehicle-modelo">{{ v.modelo }}</span>
+          <span class="vehicle-placa mono">{{ v.placa }}</span>
+        </div>
+        <form method="post" action="/cliente/veiculos/remover" onsubmit="return confirm('Remover o veículo {{ v.modelo }} ({{ v.placa }})?');">
+          <input type="hidden" name="placa" value="{{ v.placa }}">
+          <button type="submit" class="vehicle-remove-btn">Remover</button>
+        </form>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="billing-note">Nenhum veículo cadastrado ainda.</p>
+    {% endif %}
+
+    <h2 class="vehicle-add-title">Adicionar veículo</h2>
+    <form method="post" action="/cliente/veiculos/adicionar" class="auth-form">
+      <div class="form-field">
+        <label for="modelo">Modelo do veículo</label>
+        <input type="text" id="modelo" name="modelo" required placeholder="Ex.: Renault Kwid">
+      </div>
+      <div class="form-field">
+        <label for="placa">Placa</label>
+        <input type="text" id="placa" name="placa" required placeholder="ABC-1D23">
+      </div>
+      <button type="submit" class="primary">Adicionar</button>
+    </form>
+
+  </main>
+
+</body>
+</html>

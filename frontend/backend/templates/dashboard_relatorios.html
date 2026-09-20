@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ChargeGrid Intelligence — Relatórios</title>
+<link rel="icon" href="data:,">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/style.css">
+<script src="https://unpkg.com/htmx.org@1.9.12"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
+<script>(function(){try{var t=localStorage.getItem("cg-theme");if(t==="light"||t==="dark"){document.documentElement.setAttribute("data-theme",t);}}catch(e){}})();</script>
+</head>
+<body class="dashboard" hx-headers='{}'>
+
+  {% from "partials/icons.html" import icon %}
+  <header class="dash-header">
+    <div class="brand">
+      <h1>{{ icon("zap", "brand-icon", filled=True) }}ChargeGrid Intelligence</h1>
+    </div>
+    {% include "partials/theme_toggle.html" %}
+  </header>
+
+  {% include "partials/dash_nav.html" %}
+
+  <div class="dash-stack">
+
+  <section class="panel" aria-labelledby="h-relatorios">
+    <h2 id="h-relatorios"><i data-lucide="bar-chart-3" class="panel-icon" aria-hidden="true"></i>Relatórios</h2>
+    <p style="color:var(--ink-mid); font-size:0.85rem; margin-top:-0.4rem;">
+      Números agregados sobre as sessões já registradas — sem motor de analytics novo, reaproveita o mesmo cálculo do faturamento.
+    </p>
+    <div class="billing-row"><span>Total de sessões (hoje)</span><span class="val">{{ billing.sessions_today }}</span></div>
+    <div class="billing-row"><span>Faturamento acumulado</span><span class="val">{{ billing.revenue_today_rs|brl }}</span></div>
+    <div class="billing-row"><span>Ticket médio</span><span class="val">{{ billing.avg_ticket_rs|brl if billing.avg_ticket_rs is not none else '—' }}</span></div>
+    <div class="billing-note">ticket médio calculado sobre {{ billing.completed_sessions_count }} sessão(ões) já concluída(s)</div>
+  </section>
+
+  <section class="panel" aria-labelledby="h-previsao">
+    <h2 id="h-previsao"><i data-lucide="trending-up" class="panel-icon" aria-hidden="true"></i>Previsão de demanda (IA)</h2>
+    <p style="color:var(--ink-mid); font-size:0.85rem; margin-top:-0.4rem;">
+      Modelo de regressão treinado sobre o histórico de sessões — próximas 24h, comparado ao limite contratado.
+    </p>
+
+    {% if forecast %}
+    <div class="forecast-chart" role="img" aria-label="Gráfico de previsão de demanda para as próximas 24 horas">
+      <div class="forecast-limit-line"><span>limite contratado</span></div>
+      <div class="forecast-bars">
+        {% for point in forecast %}
+        {% set pct = point.pct_of_limit %}
+        {% set severity = 'critical' if pct >= 85 else ('warn' if pct >= 60 else 'ok') %}
+        <div class="forecast-bar-col">
+          <div class="forecast-bar {{ severity }}" style="height: {{ [pct, 100]|min }}%;"
+               title="{{ point.hour }}h — {{ point.predicted_kw }} kW ({{ pct }}% do limite)"></div>
+          {% if loop.index0 % 3 == 0 %}
+          <span class="forecast-bar-label">{{ point.hour }}h</span>
+          {% else %}
+          <span class="forecast-bar-label">&nbsp;</span>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="forecast-legend">
+      <span><i class="dot ok"></i> até 60% do limite</span>
+      <span><i class="dot warn"></i> 60–85%</span>
+      <span><i class="dot critical"></i> acima de 85% — risco de ultrapassar o contrato</span>
+    </div>
+    {% else %}
+    <p class="billing-note">
+      Modelo de previsão ainda não foi treinado no backend. Rode
+      <code>python -m ai.generate_history &amp;&amp; python -m ai.train_model</code>
+      no <code>chargegrid_backend</code> e recarregue esta página.
+    </p>
+    {% endif %}
+  </section>
+
+  </div>
+
+  {% include "partials/chat_widget.html" %}
+
+  <script src="/static/app.js"></script>
+  <script>ChargeGrid.init({ page: "dashboard" });</script>
+</body>
+</html>

@@ -1,0 +1,59 @@
+<script>
+/* Edição "só depois de clicar no lápis" — script autocontido (mesmo padrão do
+   theme_toggle.html: não depende de app.js/lucide, que nem toda tela carrega).
+   Só liga/desliga o readonly dos campos; quem salva é sempre o servidor. */
+(function () {
+  document.querySelectorAll("form[data-edit-form]").forEach(function (form) {
+    var actions = form.querySelector("[data-edit-actions]");
+    var rows = function () { return form.querySelectorAll("[data-edit-row]"); };
+    var anyEditing = function () { return form.querySelector("[data-edit-row].editing") !== null; };
+    var refresh = function () { if (actions) actions.hidden = !anyEditing(); };
+
+    function open(row) {
+      var input = row.querySelector("input");
+      var btn = row.querySelector("[data-edit-toggle]");
+      row.classList.add("editing");
+      input.readOnly = false;
+      if (btn) btn.hidden = true;
+      refresh();
+      form.dispatchEvent(new CustomEvent("edit:change"));
+      return input;
+    }
+
+    function cancelAll() {
+      rows().forEach(function (row) {
+        var input = row.querySelector("input");
+        var btn = row.querySelector("[data-edit-toggle]");
+        if (input.dataset.original !== undefined) input.value = input.dataset.original;
+        input.readOnly = true;
+        row.classList.remove("editing");
+        if (btn) btn.hidden = false;
+      });
+      form.querySelectorAll(".field-error").forEach(function (el) { el.hidden = true; });
+      refresh();
+      form.dispatchEvent(new CustomEvent("edit:change"));
+    }
+
+    form.addEventListener("click", function (e) {
+      var toggle = e.target.closest("[data-edit-toggle]");
+      if (toggle) {
+        var input = open(toggle.closest("[data-edit-row]"));
+        input.focus();
+        try { input.setSelectionRange(input.value.length, input.value.length); } catch (_) { /* number/email não suportam */ }
+        return;
+      }
+      if (e.target.closest("[data-edit-cancel]")) cancelAll();
+    });
+
+    form.addEventListener("keydown", function (e) {
+      // Enter num campo ainda bloqueado não deve "salvar" nada.
+      if (e.key === "Enter" && e.target.tagName === "INPUT" && e.target.readOnly) e.preventDefault();
+      if (e.key === "Escape" && anyEditing()) cancelAll();
+    });
+
+    // Tela reaberta com erro de validação: o bloco volta já em modo de edição,
+    // com o que a pessoa tinha digitado, pra corrigir sem perder nada.
+    if (form.hasAttribute("data-start-editing")) rows().forEach(open);
+  });
+})();
+</script>

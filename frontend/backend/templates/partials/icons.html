@@ -1,0 +1,39 @@
+{#
+  Ícones do app do cliente — SVGs de traço inline, na mesma linguagem visual da
+  dashboard (que usa Lucide: 24x24, traço arredondado, 2.25 de espessura) e em
+  VERMELHO da marca (var(--goodwe-red), definido em .cg-icon no style.css).
+  Substituem os emojis. Inline de propósito: as telas do cliente são
+  autocontidas (não dependem do CDN do lucide nem de app.js).
+
+  Uso:
+    {% from "partials/icons.html" import icon %}
+    {{ icon("zap") }}                 -> ícone no tamanho do texto (1.15em)
+    {{ icon("circle-check", "cg-icon-xl") }}   -> classe extra p/ tamanhos maiores
+
+  Ícones: zap, plug-zap, activity, battery-charging, timer, user, car, history,
+          qr-code, credit-card, circle-check, check, triangle-alert, x
+#}
+{% set ICON_PATHS = {
+  "zap": '<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>',
+  "plug-zap": '<path d="M6.3 20.3a2.4 2.4 0 0 0 3.4 0L12 18l-6-6-2.3 2.3a2.4 2.4 0 0 0 0 3.4Z"></path><path d="m2 22 3-3"></path><path d="M7.5 13.5 10 11"></path><path d="M10.5 16.5 13 14"></path><path d="m18 3-4 4h6l-4 4"></path>',
+  "activity": '<path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2"></path>',
+  "battery-charging": '<path d="M15 7h1a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2h-2"></path><path d="M6 7H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h1"></path><path d="m11 7-3 5h4l-3 5"></path><line x1="22" x2="22" y1="11" y2="13"></line>',
+  "timer": '<line x1="10" x2="14" y1="2" y2="2"></line><line x1="12" x2="15" y1="14" y2="11"></line><circle cx="12" cy="14" r="8"></circle>',
+  "user": '<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle>',
+  "car": '<path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"></path><circle cx="7" cy="17" r="2"></circle><path d="M9 17h6"></path><circle cx="17" cy="17" r="2"></circle>',
+  "history": '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path><path d="M12 7v5l4 2"></path>',
+  "qr-code": '<rect width="5" height="5" x="3" y="3" rx="1"></rect><rect width="5" height="5" x="16" y="3" rx="1"></rect><rect width="5" height="5" x="3" y="16" rx="1"></rect><path d="M21 16h-3a2 2 0 0 0-2 2v3"></path><path d="M21 21v.01"></path><path d="M12 7v3a2 2 0 0 1-2 2H7"></path><path d="M3 12h.01"></path><path d="M12 3h.01"></path><path d="M12 16v.01"></path><path d="M16 12h1"></path><path d="M21 12v.01"></path><path d="M12 21v-1"></path>',
+  "credit-card": '<rect width="20" height="14" x="2" y="5" rx="2"></rect><line x1="2" x2="22" y1="10" y2="10"></line>',
+  "circle-check": '<circle cx="12" cy="12" r="10"></circle><path d="m9 12 2 2 4-4"></path>',
+  "check": '<path d="M20 6 9 17l-5-5"></path>',
+  "triangle-alert": '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path>',
+  "x": '<path d="M18 6 6 18"></path><path d="m6 6 12 12"></path>'
+} %}
+
+{% macro icon(name, extra_class="", filled=False) -%}
+{%- if filled -%}
+<svg class="cg-icon {{ extra_class }}" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true" focusable="false">{{ ICON_PATHS[name]|safe }}</svg>
+{%- else -%}
+<svg class="cg-icon {{ extra_class }}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">{{ ICON_PATHS[name]|safe }}</svg>
+{%- endif -%}
+{%- endmacro %}

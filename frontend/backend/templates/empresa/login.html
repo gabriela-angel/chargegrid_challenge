@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ChargeGrid Intelligence — Entrar (empresa)</title>
+<link rel="icon" href="data:,">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/style.css">
+<script>(function(){try{var t=localStorage.getItem("cg-theme");if(t==="light"||t==="dark"){document.documentElement.setAttribute("data-theme",t);}}catch(e){}})();</script>
+</head>
+<body class="cliente-screen">
+
+  <main class="cliente-card">
+    {% from "partials/icons.html" import icon %}
+    <div class="cliente-brand-row">
+      <div class="cliente-brand">{{ icon("zap", filled=True) }}<span>ChargeGrid Intelligence</span></div>
+      {% include "partials/theme_toggle.html" %}
+    </div>
+    <h1>Entrar</h1>
+
+    {% if error %}<div class="field-error">{{ error }}</div>{% endif %}
+
+    <form method="post" action="/empresa/login" class="auth-form">
+      <div class="form-field">
+        <label for="email">E-mail</label>
+        <input type="email" id="email" name="email" required value="{{ email }}" autofocus>
+      </div>
+      <div class="form-field">
+        <label for="senha">Senha</label>
+        <input type="password" id="senha" name="senha" required>
+      </div>
+      <button type="submit" class="primary">Entrar</button>
+    </form>
+
+    <div class="banner-info">Demo: <span class="mono">contato@chargegrid.com</span> / <span class="mono">demo123</span></div>
+
+    <div class="link-row"><a href="/">← Sou cliente</a></div>
+  </main>
+
+</body>
+</html>

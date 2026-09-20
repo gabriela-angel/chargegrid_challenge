@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ChargeGrid Intelligence — Entrar</title>
+<link rel="icon" href="data:,">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/style.css">
+<script>(function(){try{var t=localStorage.getItem("cg-theme");if(t==="light"||t==="dark"){document.documentElement.setAttribute("data-theme",t);}}catch(e){}})();</script>
+</head>
+<body class="cliente-screen">
+
+  <main class="cliente-card">
+    {% from "partials/icons.html" import icon %}
+    <div class="cliente-brand-row">
+      <div class="cliente-brand">{{ icon("zap", filled=True) }}<span>ChargeGrid Intelligence</span></div>
+      {% include "partials/theme_toggle.html" %}
+    </div>
+    <h1>Como você quer entrar?</h1>
+
+    <nav class="home-menu">
+      <a href="/cliente/login">Sou cliente</a>
+      <a href="/empresa/login">Sou empresa</a>
+    </nav>
+  </main>
+
+</body>
+</html>

@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ChargeGrid — Meu perfil</title>
+<link rel="icon" href="data:,">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/style.css">
+<script>(function(){try{var t=localStorage.getItem("cg-theme");if(t==="light"||t==="dark"){document.documentElement.setAttribute("data-theme",t);}}catch(e){}})();</script>
+</head>
+<body class="cliente-screen">
+
+  {% from "partials/editable.html" import editable_row, static_row, password_row, edit_actions %}
+  {% from "partials/back_button.html" import back_button %}
+
+  {% from "partials/icons.html" import icon %}
+
+  <main class="cliente-card wide">
+    <div class="cliente-brand-row">
+      {{ back_button("/cliente/home") }}
+      <div class="cliente-brand">{{ icon("zap", filled=True) }}<span>ChargeGrid</span></div>
+      {% include "partials/theme_toggle.html" %}
+    </div>
+    <h1>Meu perfil</h1>
+
+    {% if saved %}<div class="banner-info" style="border-style:solid; color:var(--available);">Dados atualizados.</div>{% endif %}
+    {% if msg == 'senha_email' %}
+    <div class="banner-info" style="border-style:solid; color:var(--available);">
+      E-mail enviado para <strong>{{ account.email }}</strong> com o link para redefinir a senha.
+    </div>
+    {% endif %}
+
+    {# Formulário separado, FORA do de edição (forms não aninham): é o alvo do link "Alterar senha". #}
+    <form id="form-senha-cliente" method="post" action="/cliente/perfil/alterar-senha"></form>
+
+    <form method="post" action="/cliente/perfil/atualizar" class="edit-form" data-edit-form
+          {{ 'data-start-editing' if error else '' }}>
+      {% if error %}<div class="field-error">{{ error }}</div>{% endif %}
+      {{ static_row("CPF", account.cpf) }}
+      {{ editable_row("nome", "Nome", "nome", form.nome if form.nome is defined else account.nome, original=account.nome) }}
+      {{ editable_row("email", "E-mail", "email", form.email if form.email is defined else account.email, type="email", original=account.email) }}
+      {{ password_row("form-senha-cliente") }}
+      {{ edit_actions() }}
+    </form>
+
+    <div class="danger-zone">
+      <form method="post" action="/cliente/perfil/excluir"
+            onsubmit="return confirm('Tem certeza que quer excluir sua conta? Essa ação não pode ser desfeita.');">
+        <button type="submit" class="btn-danger">Excluir conta</button>
+      </form>
+    </div>
+  </main>
+
+  {% include "partials/edit_toggle.html" %}
+
+</body>
+</html>
