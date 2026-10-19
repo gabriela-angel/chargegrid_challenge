@@ -166,9 +166,7 @@ chargegrid/
 ├── LICENSE                    ← MIT
 ├── docs/
 │   ├── experimento/           ← gráficos e resultados.json do experimento (seção 8.3)
-│   ├── img/                   ← capturas de tela usadas neste README
-│   ├── roteiro_video.md       ← roteiro do vídeo técnico (≤ 5 min)
-│   └── entrega.txt            ← integrantes/RMs e links da entrega
+│   └── img/                   ← capturas de tela usadas neste README
 │
 ├── backend/                   ← o "cérebro" (porta 8000)
 │   ├── main.py                # FastAPI + loop de energia (1 s) + chave de API
