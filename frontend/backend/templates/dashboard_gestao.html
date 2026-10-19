@@ -36,15 +36,38 @@
       <div class="unifilar-hero">
         <span class="pct-hero mono" id="bus-pct">{{ '%.1f'|format(state.utilization_pct) }}%</span>
         <div class="kw-detail">
-          <span class="num" id="bus-allocated">{{ '%.1f'|format(state.total_allocated_kw) }}</span>
+          <span class="num" id="bus-allocated">{{ '%.1f'|format(state.grid_draw_kw) }}</span>
           <span class="num">/ <span id="bus-usable">{{ '%.1f'|format(state.usable_limit_kw) }}</span> kW</span>
-          <span class="contracted-note">de <span id="bus-contracted">{{ '%g'|format(state.contracted_limit_kw) }}</span> kW contratados</span>
+          <span class="contracted-note">da rede, de <span id="bus-contracted">{{ '%g'|format(state.contracted_limit_kw) }}</span> kW contratados · + <span id="bus-solar">{{ '%.1f'|format(state.solar_kw) }}</span> kW de solar</span>
         </div>
         <span id="bus-level-badge" class="level-badge {{ 'hidden' if state.utilization_level == 'ok' else '' }}">
           {% if state.utilization_level == 'critical' %}⚠ acima do limite contratado{% elif state.utilization_level == 'warning' %}⚠ utilização ≥ 90%{% endif %}
         </span>
       </div>
     </div>
+  </section>
+
+  <section class="panel energy-panel" aria-labelledby="h-energia">
+    <h2 id="h-energia"><i data-lucide="sun" class="panel-icon" aria-hidden="true"></i>Energia solar e tarifa dinâmica</h2>
+    <div class="energy-grid">
+      <div class="energy-stat">
+        <span class="energy-label">Geração solar agora</span>
+        <span class="energy-value mono"><span id="solar-kw">{{ '%.1f'|format(state.solar_kw) }}</span> kW</span>
+        <span class="energy-sub">de <span id="solar-peak">{{ '%g'|format(state.solar_peak_kw) }}</span> kWp instalados{% if state.sim_hour is not none %} · hora simulada {{ '%g'|format(state.sim_hour) }}h{% endif %}</span>
+      </div>
+      <div class="energy-stat">
+        <span class="energy-label">Energia verde entregue</span>
+        <span class="energy-value mono"><span id="green-share">{{ '%.1f'|format(state.green_share_pct) }}</span>%</span>
+        <span class="energy-sub"><span id="green-kwh">{{ '%.2f'|format(state.green_kwh_total) }}</span> kWh solares · ~<span id="co2-kg">{{ '%.3f'|format(state.co2_avoided_kg) }}</span> kg CO₂ evitados</span>
+      </div>
+      <div class="energy-stat">
+        <span class="energy-label">Preço do kWh agora</span>
+        <span class="energy-value mono"><span id="tariff-now">{{ state.tariff.price_rs_per_kwh|brl }}</span>
+          <span id="tariff-level" class="level-pill {{ state.tariff.level }}">{{ state.tariff.level }}</span></span>
+        <span class="energy-sub">pressão na rede <span id="tariff-pressure">{{ '%.0f'|format(state.tariff.pressure_pct) }}</span>% · {{ '%.2f'|format(state.tariff.multiplier) }}× a tarifa-base</span>
+      </div>
+    </div>
+    {% with hide_now = True %}{% include "partials/price_strip.html" %}{% endwith %}
   </section>
 
   <section class="dash-grid">
@@ -67,9 +90,11 @@
             {% for point in forecast %}
             {% set pct = point.pct_of_limit %}
             {% set severity = 'critical' if pct >= 85 else ('warn' if pct >= 60 else 'ok') %}
-            <div class="forecast-bar-col">
-              <div class="forecast-bar {{ severity }}" style="height: {{ [pct, 100]|min }}%;"
-                   title="{{ point.hour }}h — {{ point.predicted_kw }} kW ({{ pct }}% do limite)"></div>
+            <div class="forecast-bar-col" tabindex="0" data-tip data-tip-tone="{{ severity }}"
+             data-tip-head="{{ point.hour }}h" data-tip-main="{{ point.predicted_kw }} kW"
+             data-tip-pill="{{ 'risco de pico' if severity == 'critical' else ('atenção' if severity == 'warn' else 'folgado') }}"
+             data-tip-detail="{{ pct }}% do limite contratado">
+              <div class="forecast-bar {{ severity }}" style="height: {{ [pct, 100]|min }}%;"></div>
               {% if loop.index0 % 3 == 0 %}
               <span class="forecast-bar-label">{{ point.hour }}h</span>
               {% else %}
@@ -120,6 +145,7 @@
   {% include "partials/chat_widget.html" %}
 
   <script src="/static/app.js"></script>
+  <script src="/static/chart-tip.js"></script>
   <script>ChargeGrid.init({ page: "dashboard" });</script>
 </body>
 </html>

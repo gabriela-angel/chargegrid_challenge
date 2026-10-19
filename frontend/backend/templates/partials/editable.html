@@ -19,10 +19,20 @@
 {# value = o que o input mostra agora; original = o valor salvo de verdade
    (pode diferir quando a tela volta com erro de validação: value é o que o
    usuário digitou, original é o que "Cancelar" deve restaurar). #}
-{% macro editable_row(id, label, name, value, type="text", suffix="", hint="", extra="", original=none) %}
+{# Ícone "i": ao passar o mouse (ou focar com Tab) abre o cartão do chart-tip.js — a página
+   precisa incluir /static/chart-tip.js. Explica, para quem configura, o que o valor significa. #}
+{% macro info_tip(title, text) -%}
+<span class="info-tip" tabindex="0" role="img" aria-label="{{ title }}: {{ text }}"
+      data-tip data-tip-head="{{ title }}" data-tip-detail="{{ text }}">i</span>
+{%- endmacro %}
+
+{% macro editable_row(id, label, name, value, type="text", suffix="", hint="", extra="", original=none, info="") %}
 <div class="edit-row" data-edit-row>
   <div class="edit-row-main">
-    <label class="edit-label" for="{{ id }}">{{ label }}</label>
+    <div class="edit-label-line">
+      <label class="edit-label" for="{{ id }}">{{ label }}</label>
+      {% if info %}{{ info_tip(label, info) }}{% endif %}
+    </div>
     <div class="edit-value">
       <input type="{{ type }}" id="{{ id }}" name="{{ name }}" value="{{ value }}"
              data-original="{{ value if original is none else original }}" readonly required {{ extra|safe }}
@@ -36,11 +46,14 @@
 {% endmacro %}
 
 {# Linha só de leitura, sem lápis (ex.: CPF — é a chave da conta, não muda). #}
-{% macro static_row(label, value) %}
+{% macro static_row(label, value, bold=false, info="") %}
 <div class="edit-row">
   <div class="edit-row-main">
-    <span class="edit-label">{{ label }}</span>
-    <div class="edit-value"><span class="edit-static">{{ value }}</span></div>
+    <div class="edit-label-line">
+      <span class="edit-label">{{ label }}</span>
+      {% if info %}{{ info_tip(label, info) }}{% endif %}
+    </div>
+    <div class="edit-value"><span class="edit-static{{ ' is-bold' if bold else '' }}">{{ value }}</span></div>
   </div>
 </div>
 {% endmacro %}

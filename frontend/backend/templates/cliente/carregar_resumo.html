@@ -39,6 +39,7 @@
           {% if estimate.estimated_time_min is not none %}~{{ '%.0f'|format(estimate.estimated_time_min) }} min{% else %}indisponível agora{% endif %}
         {% endif %}
       </span></div>
+      <div class="row"><span>Tarifa (travada ao pagar)</span><span class="val">{{ estimate.tariff_rs_per_kwh|brl }}/kWh</span></div>
       <div class="row"><span>Valor estimado</span><span class="val">
         {% if estimate.estimated_cost_rs is not none %}{{ estimate.estimated_cost_rs|brl }}{% else %}indisponível agora{% endif %}
       </span></div>
@@ -55,6 +56,7 @@
       <input type="hidden" name="charger_id" value="{{ charger.id }}">
       <input type="hidden" name="modo" value="{{ modo }}">
       <input type="hidden" name="valor" value="{{ valor }}">
+      <input type="hidden" name="tarifa" value="{{ estimate.tariff_rs_per_kwh }}">
 
       <div class="form-field">
         <label>Forma de pagamento</label>

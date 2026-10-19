@@ -32,6 +32,7 @@ import client_store
 import company_store
 import demo_seed
 import payments
+import security
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger("chargegrid.main")
@@ -41,7 +42,9 @@ logger = logging.getLogger("chargegrid.main")
 # ----------------------------------------------------------------------
 
 SITE_NAME = "Shopping Paulista — Estacionamento"
-TARIFF_RS_PER_KWH = 4.26
+# A TARIFA não mora mais aqui: o preço do kWh é dinâmico e calculado pelo backend
+# (core/tariff.py), guiado pela previsão de demanda da IA. Cada sessão carrega o
+# preço travado na conexão (cost_rs). Ver current_price() abaixo.
 
 # URL do backend real (o mesmo que o ESP32 chama). Em dev, os dois rodam
 # na mesma máquina em portas diferentes; em produção, aponta pra URL do
@@ -49,6 +52,7 @@ TARIFF_RS_PER_KWH = 4.26
 BACKEND_API_URL = os.environ.get("CHARGEGRID_API_URL", "http://127.0.0.1:8000")
 
 TICK_INTERVAL_S = 1.0
+HISTORY_PAGE_LIMIT = 300   # linhas da tela Histórico do dashboard (as mais recentes)
 
 # Modo demonstração (ligado por padrão): cadastra os clientes fictícios de
 # demo_seed.py, importa o histórico de recargas deles e habilita as rotas
@@ -62,7 +66,12 @@ DEMO_MODE = os.environ.get("DEMO_MODE", "1") != "0"
 # do estado que vive de verdade no backend real (ver remote_controller.py)
 # ----------------------------------------------------------------------
 
-controller = RemoteController(BACKEND_API_URL)
+controller = RemoteController(BACKEND_API_URL, api_key=security.api_key())
+
+
+def current_price() -> float:
+    """Preço atual do kWh (R$) — lido do backend (tarifa dinâmica), nunca calculado aqui."""
+    return float(controller.tariff.get("price_rs_per_kwh") or 0.0)
 
 
 class ConnectionManager:
@@ -179,98 +188,100 @@ def format_brl(value: float) -> str:
     return f"R$ {s}"
 
 
-def billing_curve_svg(controller: RemoteController, width: int = 300, height: int = 90, pad: int = 8) -> dict:
-    """Faturamento acumulado ao longo do dia, em degraus — construído a partir
-    das sessões REAIS (concluídas + em andamento), não mais de uma fórmula
-    fixa. Cada sessão concluída soma seu valor (energy_kwh * tarifa) no
-    instante em que terminou (started_at + duration); a energia das sessões
-    ainda em andamento entra como o último ponto ("agora"), então a curva
-    sobe conforme o dia avança e fica achatada se ninguém carregar nada.
-    """
-    now = datetime.now()
-
-    completed = controller.completed_sessions
-    active = controller.active_sessions
-
-    starts = [s.started_at for s in completed + active if s.started_at is not None]
-    steps: list[tuple[datetime, float]] = []
-    for s in completed:
-        if s.started_at is None:
-            continue
-        ended_at = s.started_at + timedelta(minutes=s.duration_minutes())
-        steps.append((ended_at, s.energy_consumed_kwh * TARIFF_RS_PER_KWH))
-    steps.sort(key=lambda item: item[0])
-
-    t0 = min(starts) if starts else now - timedelta(minutes=1)
-    if t0 >= now:
-        t0 = now - timedelta(minutes=1)
-    total_minutes = max((now - t0).total_seconds() / 60, 0.1)
-
-    # Série em degraus: plana até cada sessão terminar, aí sobe de uma vez.
-    points: list[tuple[float, float]] = [(0.0, 0.0)]
-    cumulative = 0.0
-    for ended_at, amount in steps:
-        minute = min(max((ended_at - t0).total_seconds() / 60, 0.0), total_minutes)
-        points.append((minute, cumulative))
-        cumulative += amount
-        points.append((minute, cumulative))
-
-    active_kwh_now = sum(s.energy_consumed_kwh for s in active)
-    final_revenue = cumulative + active_kwh_now * TARIFF_RS_PER_KWH
-    points.append((total_minutes, cumulative))
-    points.append((total_minutes, final_revenue))
-
-    minute_values = [m for m, _ in points]
-    revenue_values = [r for _, r in points]
-    m_min, m_max = min(minute_values), max(minute_values) or 1.0
-    if m_max == m_min:
-        m_max = m_min + 1.0
-    r_min = 0.0
-    r_max = max(revenue_values) or 1.0
-    r_span = (r_max - r_min) or 1.0
-
-    def scale(minute: float, revenue: float) -> tuple[float, float]:
-        x = pad + (minute - m_min) / (m_max - m_min) * (width - 2 * pad)
-        y = pad + (1 - (revenue - r_min) / r_span) * (height - 2 * pad)
-        return round(x, 1), round(y, 1)
-
-    coords = [scale(m, r) for m, r in points]
-    path = "M " + " L ".join(f"{x},{y}" for x, y in coords)
-    marker_x, marker_y = scale(total_minutes, final_revenue)
-    baseline_y = round(pad + (1 - (0 - r_min) / r_span) * (height - 2 * pad), 1)
-
-    # Área preenchida sob a curva (technique "area chart") — mesmo path da
-    # linha, fechado descendo até a baseline e voltando ao ponto inicial.
-    area_path = f"{path} L {coords[-1][0]},{baseline_y} L {coords[0][0]},{baseline_y} Z"
-
-    return {
-        "path": path, "area_path": area_path, "width": width, "height": height,
-        "marker_x": marker_x, "marker_y": marker_y, "baseline_y": baseline_y,
-    }
-
-
 def billing_snapshot() -> dict:
-    active_kwh = sum(s.energy_consumed_kwh for s in controller.active_sessions)
-    completed_kwh = sum(s.energy_consumed_kwh for s in controller.completed_sessions)
-    total_kwh = active_kwh + completed_kwh
+    """Números de HOJE do painel de faturamento (o histórico guarda vários dias,
+    então só entram as sessões que terminaram hoje + as em andamento)."""
+    active = controller.active_sessions
+    completed = controller.today_completed_sessions
+    # Receita = soma do custo de cada sessão, com o preço travado NA CONEXÃO dela.
+    completed_rs = sum(s.cost_rs for s in completed)
+    revenue_rs = completed_rs + sum(s.cost_rs for s in active)
+    total_kwh = sum(s.energy_consumed_kwh for s in completed) + sum(s.energy_consumed_kwh for s in active)
 
-    # Ticket médio e duração média — só sobre completed_sessions (sessões já
-    # finalizadas), que é o dado confiável para uma "média"; sessões ativas
-    # ainda estão em andamento e distorceriam a métrica.
-    completed = controller.completed_sessions
+    # Ticket médio e duração média — só sobre as sessões já finalizadas (as ativas
+    # ainda estão em andamento e distorceriam a métrica).
     n_completed = len(completed)
-    avg_ticket_rs = (completed_kwh * TARIFF_RS_PER_KWH / n_completed) if n_completed else None
+    avg_ticket_rs = (completed_rs / n_completed) if n_completed else None
     avg_duration_min = (sum(s.duration_minutes() for s in completed) / n_completed) if n_completed else None
 
     return {
-        "tariff_rs_per_kwh": TARIFF_RS_PER_KWH,
+        "tariff_rs_per_kwh": current_price(),
         "kwh_today": round(total_kwh, 3),
-        "revenue_today_rs": round(total_kwh * TARIFF_RS_PER_KWH, 2),
-        "sessions_today": len(controller.active_sessions) + len(controller.completed_sessions),
+        "revenue_today_rs": round(revenue_rs, 2),
+        "sessions_today": len(active) + n_completed,
         "completed_sessions_count": n_completed,
         "avg_ticket_rs": round(avg_ticket_rs, 2) if avg_ticket_rs is not None else None,
         "avg_duration_min": round(avg_duration_min, 1) if avg_duration_min is not None else None,
-        "curve_svg": billing_curve_svg(controller),
+    }
+
+
+_WEEKDAYS_PT = ["seg", "ter", "qua", "qui", "sex", "sáb", "dom"]
+_PERIODS = {"dia": "day", "semana": "week", "mes": "month"}
+
+
+def _brl_compact(value: float) -> str:
+    """R$ 600 / R$ 1,2 mil — para os rótulos do eixo do gráfico."""
+    if value >= 1000:
+        return "R$ " + f"{value / 1000:.1f}".replace(".", ",").replace(",0", "") + " mil"
+    return f"R$ {value:.0f}"
+
+
+def _nice_ceiling(value: float) -> float:
+    """Menor 1, 2, 2,5, 5 ou 10 x 10^n que comporta `value` (teto "redondo" do eixo)."""
+    if value <= 0:
+        return 100.0
+    import math
+    magnitude = 10 ** math.floor(math.log10(value))
+    for step in (1, 2, 2.5, 5, 10):
+        if value <= step * magnitude:
+            return step * magnitude
+    return 10 * magnitude
+
+
+def revenue_chart_view(series: dict, periodo: str) -> dict:
+    """Só apresentação: transforma a série do backend (GET /api/billing/series) em
+    barras com altura, rótulos e textos do tooltip. Nenhum cálculo de negócio."""
+    buckets = series["buckets"]
+    current = series["current_index"]
+    ceiling = _nice_ceiling(max((b["revenue_rs"] for b in buckets), default=0.0))
+    bars = []
+    for i, b in enumerate(buckets):
+        start = datetime.fromisoformat(b["start"])
+        if periodo == "dia":
+            label = f"{start.hour}h" if i % 3 == 0 else ""
+            head = f"{start.hour}h–{(start.hour + 1) % 24}h"
+        else:
+            wd = _WEEKDAYS_PT[start.weekday()]
+            head = f"{wd}, {start:%d/%m}" + (" (hoje)" if i == current else "")
+            if periodo == "semana":
+                label = f"{wd} {start:%d}"
+            else:
+                label = f"{start:%d}" if (i % 5 == 0 or i == len(buckets) - 1) else ""
+        detail = (f"{b['sessions']} sessão(ões) · {b['kwh']:.1f} kWh" if b["sessions"]
+                  else "nenhuma sessão neste período")
+        bars.append({
+            "height": max(2.0, round(b["revenue_rs"] / ceiling * 100, 1)) if b["revenue_rs"] > 0 else 2.0,
+            "label": label, "head": head, "main": format_brl(b["revenue_rs"]), "detail": detail,
+            "is_current": i == current,
+            "is_future": periodo == "dia" and i > current,
+        })
+    delta = series["delta_pct"]
+    if delta is None:
+        delta_text, delta_tone = f"sem dados de {series['compare_label']} para comparar", "neutral"
+    else:
+        sign = "+" if delta >= 0 else "−"
+        delta_text = f"{sign}{abs(delta):.1f}% vs {series['compare_label']}".replace(".", ",")
+        delta_tone = "ok" if delta >= 0 else "warn"
+    titles = {"dia": ("por hora", "hoje"), "semana": ("por dia", "últimos 7 dias"), "mes": ("por dia", "últimos 30 dias")}
+    unit_word = "hora" if periodo == "dia" else "dia"
+    return {
+        "periodo": periodo, "bars": bars,
+        "title": f"Faturamento {titles[periodo][0]}", "range_label": titles[periodo][1],
+        "total": series["total_rs"], "sessions": series["sessions"], "kwh": series["total_kwh"],
+        "delta_text": delta_text, "delta_tone": delta_tone,
+        "ticks": [_brl_compact(ceiling), _brl_compact(ceiling / 2), "R$ 0"],
+        "caption": f"Cada barra é o total faturado em cada {unit_word} (sessões concluídas e em andamento). "
+                   f"A barra vermelha é {'a hora' if periodo == 'dia' else 'o dia'} de hoje.",
     }
 
 
@@ -291,7 +302,9 @@ def completed_sessions_payload() -> list[dict]:
             "started_at_date": s.started_at.strftime("%d/%m/%Y"),
             "duration_min": round(s.duration_minutes(), 1),
             "energy_kwh": round(s.energy_consumed_kwh, 3),
-            "revenue_rs": round(s.energy_consumed_kwh * TARIFF_RS_PER_KWH, 2),
+            "revenue_rs": round(s.cost_rs, 2),
+            "tariff_rs_per_kwh": s.tariff_rs_per_kwh,
+            "green_kwh": round(s.green_kwh, 3),
         }
         for s in controller.completed_sessions
     ]
@@ -375,7 +388,7 @@ def _issue_session_qr_url(request: Request, cpf: str) -> str:
 # Estimativa de recarga (App do Cliente) — NÃO toca no DemandController
 # ----------------------------------------------------------------------
 
-def estimate_charge(charger_id: str, goal_type: str, valor: float) -> dict:
+def estimate_charge(charger_id: str, goal_type: str, valor: float, tariff: float | None = None) -> dict:
     """
     Estimativa simples de tempo/custo para uma recarga que AINDA NÃO
     começou, baseada na condição ATUAL da rede (kW ainda disponíveis
@@ -396,6 +409,7 @@ def estimate_charge(charger_id: str, goal_type: str, valor: float) -> dict:
     exato escolhido pelo cliente no modo escolhido — nunca a projeção do
     outro campo, que pode mudar se a potência disponível mudar.
     """
+    price = tariff if tariff and tariff > 0 else current_price()
     charger = controller.chargers[charger_id]
     estimated_power_kw = round(min(charger.max_kw, max(0.0, controller.available_kw)), 2)
 
@@ -408,7 +422,7 @@ def estimate_charge(charger_id: str, goal_type: str, valor: float) -> dict:
         estimated_time_min = round((target_kwh / estimated_power_kw) * 60, 1) if estimated_power_kw > 0 else None
         target_min = estimated_time_min
 
-    estimated_cost_rs = round(target_kwh * TARIFF_RS_PER_KWH, 2) if target_kwh is not None else None
+    estimated_cost_rs = round(target_kwh * price, 2) if target_kwh is not None else None
 
     return {
         "charger_id": charger_id,
@@ -418,6 +432,25 @@ def estimate_charge(charger_id: str, goal_type: str, valor: float) -> dict:
         "estimated_power_kw": estimated_power_kw,
         "estimated_time_min": estimated_time_min,
         "estimated_cost_rs": estimated_cost_rs,
+        "tariff_rs_per_kwh": price,
+    }
+
+
+def _build_receipt(session, charger_id: str, location: str, reason: str) -> dict:
+    """Recibo da recarga. Prefere a sessão JÁ ARQUIVADA pelo backend (valores finais,
+    iguais aos do histórico); cai para a última leitura em cache se não a achar."""
+    done = next((s for s in reversed(controller.completed_sessions)
+                 if s.charger_id == charger_id and s.vehicle_id == session.vehicle_id), session)
+    return {
+        "vehicle_id": done.vehicle_id,
+        "charger_id": charger_id,
+        "location": location,
+        "energy_kwh": round(done.energy_consumed_kwh, 3),
+        "duration_min": round(done.duration_minutes(), 1),
+        "revenue_rs": round(done.cost_rs, 2),
+        "tariff_rs_per_kwh": done.tariff_rs_per_kwh,
+        "green_kwh": round(done.green_kwh, 3),
+        "completed_reason": reason,
     }
 
 
@@ -460,15 +493,7 @@ async def _check_goals_and_autodisconnect() -> None:
         )
         charging_goals.pop(charger_id, None)
         client_active_charger.pop(cpf, None)
-        last_receipt[cpf] = {
-            "vehicle_id": session.vehicle_id,
-            "charger_id": charger_id,
-            "location": location,
-            "energy_kwh": round(session.energy_consumed_kwh, 3),
-            "duration_min": round(session.duration_minutes(), 1),
-            "revenue_rs": round(session.energy_consumed_kwh * TARIFF_RS_PER_KWH, 2),
-            "completed_reason": "meta_atingida",
-        }
+        last_receipt[cpf] = _build_receipt(session, charger_id, location, "meta_atingida")
 
 
 # ----------------------------------------------------------------------
@@ -483,35 +508,70 @@ async def ticker_loop() -> None:
     tick_energy()). Hoje só busca o estado mais recente do backend a cada
     1s — é isso que faz os números da tela "andarem sozinhos".
     """
+    tick = 0
     while True:
         await asyncio.sleep(TICK_INTERVAL_S)
-        await controller.refresh()
-        await _check_goals_and_autodisconnect()
-        if controller.active_sessions or manager.active:
-            await manager.broadcast(build_payload())
+        tick += 1
+        try:
+            await controller.refresh()
+            if DEMO_MODE and not _demo_seeded and tick % 5 == 0:   # backend voltou depois de uma partida sem ele
+                await controller.refresh_sessions()
+                await _try_seed_demo()
+            if tick % 30 == 0:               # curva de preço muda devagar: renova a cada ~30s
+                await controller.refresh_tariff()
+            await _check_goals_and_autodisconnect()
+            if controller.active_sessions or manager.active:
+                await manager.broadcast(build_payload())
+        except Exception as exc:  # backend reiniciando/lento: segue tentando, não mata o loop
+            logger.warning("ticker: falha ao sincronizar com o backend (%s) — tentando de novo.", exc)
 
 
 # ----------------------------------------------------------------------
 # App / lifespan
 # ----------------------------------------------------------------------
 
-async def _seed_demo() -> None:
+_demo_seeded = False
+
+
+async def _try_seed_demo() -> None:
+    """Roda o seed da demo; se o backend não responder, deixa para o ticker repetir."""
+    global _demo_seeded
+    try:
+        _demo_seeded = await _seed_demo()
+    except Exception as exc:
+        logger.warning("Demo: seed adiado — backend indisponível (%s).", exc)
+
+
+async def _seed_demo() -> bool:
     """Cadastra os clientes fictícios e importa as recargas anteriores deles
     no histórico do backend real. Só importa o histórico se ele ainda não
-    tiver sessões dessas placas (senão, reiniciar SÓ o frontend duplicaria)."""
+    tiver sessões dessas placas (senão, reiniciar SÓ o frontend duplicaria).
+    Devolve False se o histórico não pôde ser importado (backend fora do ar) —
+    o ticker tenta de novo depois."""
     created = demo_seed.seed_clients()
     plates = demo_seed.demo_plates()
     if any(s.vehicle_id in plates for s in controller.completed_sessions):
         logger.info("Demo: histórico dos clientes fictícios já presente — nada a importar.")
     else:
-        result = await controller.import_sessions(demo_seed.history_items())
+        result = await controller.import_sessions(demo_seed.history_items() + demo_seed.past_days_items())
         if "error" in result:
-            logger.warning("Demo: não consegui importar o histórico (%s) — seguindo sem ele.", result["error"])
+            logger.warning("Demo: não consegui importar o histórico (%s) — tento de novo em instantes.", result["error"])
+            return False
         else:
-            logger.info("Demo: %d sessão(ões) anterior(es) importada(s) para o histórico.", result["imported"])
+            logger.info("Demo: %d sessão(ões) anterior(es) importada(s) para o histórico (hoje + %d dias).",
+                        result["imported"], demo_seed.PAST_DAYS)
+            # O histórico novo vira dado de treino: a previsão (e a tarifa dinâmica que depende
+            # dela) passa a refletir também esses dias.
+            metrics = await controller.retrain_model()
+            if "error" in metrics:
+                logger.warning("Demo: histórico importado, mas o re-treino da IA falhou (%s).", metrics["error"])
+            else:
+                logger.info("Demo: IA re-treinada com %d horas do histórico — MAE %.2f kW, R² %.3f.",
+                            metrics["real_samples"], metrics["mae_kw"], metrics["r2"])
     logger.info("Demo: %d cliente(s) fictício(s) cadastrado(s) — login com CPF + senha '%s':", created, demo_seed.DEMO_PASSWORD)
     for c in demo_seed.DEMO_CLIENTS:
         logger.info("   %s  %-18s %s", c["cpf"], c["nome"], ", ".join(v["placa"] for v in c["veiculos"]))
+    return True
 
 
 @asynccontextmanager
@@ -519,13 +579,20 @@ async def lifespan(app: FastAPI):
     # Os 12 carregadores já existem no backend real (core/state.py de
     # lá) — aqui só busca o estado inicial e prepara as camadas de
     # demo/UI (payment_status, sim_flags) que vivem só neste projeto.
-    await controller.refresh()
-    await controller.refresh_sessions()
+    # O frontend precisa subir mesmo com o backend fora do ar (ordem de inicialização,
+    # reinício, queda): o ticker segue tentando e a tela se completa quando ele volta.
+    try:
+        await controller.refresh()
+        await controller.refresh_sessions()
+        await controller.refresh_tariff()
+    except Exception as exc:
+        logger.warning("Backend %s indisponível na inicialização (%s) — o ticker tenta de novo a cada 1s.",
+                       BACKEND_API_URL, exc)
     for charger_id in controller.chargers:
         payment_status[charger_id] = "pago"
         sim_flags[charger_id] = None
     if DEMO_MODE:
-        await _seed_demo()
+        await _try_seed_demo()
     task = asyncio.create_task(ticker_loop())
     logger.info("ChargeGrid Intelligence (frontend) iniciado — conectado a %s | %d carregadores",
                 BACKEND_API_URL, len(controller.chargers))
@@ -567,6 +634,31 @@ def _require_company(request: Request) -> RedirectResponse | None:
     return None
 
 
+def _require_operator(request: Request) -> None:
+    """Guard das rotas de AÇÃO/JSON usadas pelo dashboard (/connect, /disconnect,
+    /sessions, /chat, /charger/*/demo/*): sem login de empresa, 401. Diferente de
+    _require_company, não redireciona — essas rotas são chamadas por HTMX/fetch."""
+    if _current_company(request) is None:
+        raise HTTPException(status_code=401, detail="Login de operador necessário.")
+
+
+def _is_loopback(request: Request) -> bool:
+    return bool(request.client) and request.client.host in ("127.0.0.1", "::1", "localhost")
+
+
+def _require_operator_or_key(request: Request) -> None:
+    """Guard das rotas /demo/* (scripts de bastidor, sem cookie): aceita (1) login de
+    operador, (2) cabeçalho X-API-Key com a chave configurada ou (3) — só quando NENHUMA
+    chave está configurada (dev local) — chamadas vindas da própria máquina."""
+    if _current_company(request) is not None:
+        return
+    if security.key_matches(request.headers.get("x-api-key")):
+        return
+    if not security.api_key() and _is_loopback(request):
+        return
+    raise HTTPException(status_code=401, detail="Informe login de operador ou X-API-Key.")
+
+
 @app.get("/", response_class=HTMLResponse)
 async def entrada(request: Request):
     """Landing pública: escolha entre App do Cliente (motorista) e
@@ -583,8 +675,8 @@ async def dashboard_visao_geral(request: Request):
     forecast = await controller.get_predictions(hours=24)
     return templates.TemplateResponse(
         "dashboard_gestao.html",
-        {"request": request, "state": payload, "tariff": TARIFF_RS_PER_KWH, "active_nav": "visao",
-         "forecast": forecast, "company": _current_company(request)},
+        {"request": request, "state": payload, "active_nav": "visao",
+         "forecast": forecast, "tariff_forecast": controller.tariff_forecast, "company": _current_company(request)},
     )
 
 
@@ -595,7 +687,7 @@ async def dashboard_carregadores(request: Request):
     payload = build_payload()
     return templates.TemplateResponse(
         "dashboard_carregadores.html",
-        {"request": request, "state": payload, "tariff": TARIFF_RS_PER_KWH, "active_nav": "carregadores",
+        {"request": request, "state": payload, "active_nav": "carregadores",
          "company": _current_company(request)},
     )
 
@@ -617,11 +709,27 @@ async def dashboard_historico(request: Request):
         return redirect
     sessions = completed_sessions_payload()
     sessions.reverse()
+    total = len(sessions)
+    sessions = sessions[:HISTORY_PAGE_LIMIT]     # o histórico guarda semanas; a tela mostra as mais recentes
     return templates.TemplateResponse(
         "dashboard_historico.html",
-        {"request": request, "sessions": sessions, "active_nav": "historico",
+        {"request": request, "sessions": sessions, "history_total": total, "history_limit": HISTORY_PAGE_LIMIT,
+         "active_nav": "historico",
          "company": _current_company(request)},
     )
+
+
+@app.get("/dashboard/faturamento/grafico", response_class=HTMLResponse)
+async def dashboard_faturamento_grafico(request: Request, periodo: str = "dia"):
+    """Gráfico de faturamento (Dia | Semana | Mês). Devolve só o bloco do gráfico —
+    as abas e o auto-refresh (HTMX) trocam esse bloco inteiro."""
+    _require_operator(request)
+    if periodo not in _PERIODS:
+        raise HTTPException(status_code=400, detail="Período inválido (use dia, semana ou mes).")
+    series = await controller.get_billing_series(_PERIODS[periodo])
+    chart = revenue_chart_view(series, periodo) if series else None
+    return templates.TemplateResponse(
+        "partials/revenue_chart.html", {"request": request, "chart": chart, "periodo": periodo})
 
 
 @app.get("/dashboard/relatorios", response_class=HTMLResponse)
@@ -632,6 +740,7 @@ async def dashboard_relatorios(request: Request):
     return templates.TemplateResponse(
         "dashboard_relatorios.html",
         {"request": request, "billing": billing_snapshot(), "forecast": forecast, "active_nav": "relatorios",
+         "state": build_payload(), "tariff_forecast": controller.tariff_forecast,
          "company": _current_company(request)},
     )
 
@@ -650,9 +759,11 @@ async def _config_page(request: Request, *, saved: str | None = None, msg: str |
             "usable_limit_pct": controller.usable_limit_pct,
             "usable_limit_kw": controller.usable_limit_kw,
         }
+    tariff_cfg = await controller.get_tariff_config() or {}
+    solar = await controller.get_solar() or {}
     return templates.TemplateResponse(
         "dashboard_configuracoes.html",
-        {"request": request, "tariff": TARIFF_RS_PER_KWH, "payment_mode": payments.PAYMENT_MODE,
+        {"request": request, "tariff_cfg": tariff_cfg, "solar": solar, "payment_mode": payments.PAYMENT_MODE,
          "active_nav": "config", "company": _current_company(request), "settings": settings,
          "saved": saved, "msg": msg, "error": error, "edit_section": edit_section, "form": form or {}},
         status_code=status_code,
@@ -715,16 +826,65 @@ async def dashboard_configuracoes_alterar_senha(request: Request):
 
 
 @app.post("/dashboard/configuracoes/tarifa", response_class=HTMLResponse)
-async def dashboard_configuracoes_tarifa(request: Request, tarifa: float = Form(...)):
+async def dashboard_configuracoes_tarifa(
+    request: Request,
+    base: float = Form(...),
+    min_mult: float = Form(...),
+    max_mult: float = Form(...),
+    low_pct: float = Form(...),
+    high_pct: float = Form(...),
+):
+    """Parâmetros da tarifa dinâmica. A regra (validação e cálculo do preço) vive no
+    backend real (PUT /api/tariff/config) — aqui só repassa e mostra o erro."""
     if (redirect := _require_company(request)) is not None:
         return redirect
-    global TARIFF_RS_PER_KWH
-    if tarifa <= 0:
+    result = await controller.update_tariff_config(
+        base_rs_per_kwh=base, min_multiplier=min_mult, max_multiplier=max_mult,
+        low_pressure_pct=low_pct, high_pressure_pct=high_pct,
+    )
+    if "error" in result:
         return await _config_page(
-            request, error="A tarifa deve ser maior que zero.", edit_section="tarifa",
-            form={"tarifa": tarifa}, status_code=400,
+            request, error=result["error"], edit_section="tarifa",
+            form={"base": base, "min_mult": min_mult, "max_mult": max_mult, "low_pct": low_pct, "high_pct": high_pct},
+            status_code=400,
         )
-    TARIFF_RS_PER_KWH = round(tarifa, 4)
+    return RedirectResponse("/dashboard/configuracoes?saved=1", status_code=303)
+
+
+@app.post("/dashboard/configuracoes/solar", response_class=HTMLResponse)
+async def dashboard_configuracoes_solar(request: Request, peak_kw: float = Form(...)):
+    """Potência FV instalada (kWp). A hora simulada saiu daqui: é do Modo demonstração."""
+    if (redirect := _require_company(request)) is not None:
+        return redirect
+    result = await controller.update_solar(peak_kw=peak_kw)
+    if "error" in result:
+        return await _config_page(request, error=result["error"], edit_section="solar", status_code=400)
+    return RedirectResponse("/dashboard/configuracoes?saved=1", status_code=303)
+
+
+@app.post("/dashboard/configuracoes/demo", response_class=HTMLResponse)
+async def dashboard_configuracoes_demo(request: Request, hora: str = Form("real")):
+    """Modo demonstração: congela a hora da simulação solar ("real" = relógio do sistema)."""
+    if (redirect := _require_company(request)) is not None:
+        return redirect
+    try:
+        sim_hour = None if hora == "real" else float(hora)
+    except ValueError:
+        sim_hour = None
+    result = await controller.update_solar(sim_hour=sim_hour, set_sim_hour=True)
+    if "error" in result:
+        return await _config_page(request, error=result["error"], status_code=400)
+    return RedirectResponse("/dashboard/configuracoes?saved=1", status_code=303)
+
+
+@app.post("/dashboard/configuracoes/tarifa-auto", response_class=HTMLResponse)
+async def dashboard_configuracoes_tarifa_auto(request: Request):
+    """Volta os limiares de pressão da tarifa para a calibração automática pela IA."""
+    if (redirect := _require_company(request)) is not None:
+        return redirect
+    result = await controller.update_tariff_config(pressure_auto=True)
+    if "error" in result:
+        return await _config_page(request, error=result["error"], edit_section="tarifa", status_code=400)
     return RedirectResponse("/dashboard/configuracoes?saved=1", status_code=303)
 
 
@@ -925,7 +1085,8 @@ def _carregar_config_response(request: Request, form: dict, error: str | None = 
     vehicles = client_store.list_vehicles(account["cpf"]) if account else []
     return templates.TemplateResponse(
         "cliente/carregar_config.html",
-        {"request": request, "free_chargers": free_chargers, "vehicles": vehicles, "error": error, "form": form},
+        {"request": request, "free_chargers": free_chargers, "vehicles": vehicles, "error": error, "form": form,
+         "tariff_forecast": controller.tariff_forecast},
         status_code=status_code,
     )
 
@@ -1035,7 +1196,7 @@ def _reject_carregar(request: Request, placa: str, message: str, status_code: in
 
 
 async def _start_client_charge(account: dict, charger_id: str, placa: str, goal_fields: dict,
-                               event_message: str) -> str | None:
+                               event_message: str, tariff: float | None = None) -> str | None:
     """Inicia a recarga de um cliente: conecta o veículo no backend e registra
     a camada do app (meta escolhida, "minha recarga", veículo lembrado na
     conta). Devolve a mensagem de erro (ex.: vaga ocupada) ou None se deu certo.
@@ -1044,7 +1205,7 @@ async def _start_client_charge(account: dict, charger_id: str, placa: str, goal_
     O caminho do Pix (/cliente/carregar/pix/status) faz essas mesmas etapas
     depois da confirmação do pagamento — não foi migrado pra cá porque
     exige PAYMENT_MODE=mercadopago pra testar."""
-    result = await controller.vehicle_connect(charger_id, placa)
+    result = await controller.vehicle_connect(charger_id, placa, tariff)
     if isinstance(result, dict) and "error" in result:
         return result["error"]
     charging_goals[charger_id] = {**goal_fields, "cpf": account["cpf"]}
@@ -1075,15 +1236,7 @@ async def _finish_client_charge(cpf: str, reason: str = "manual") -> dict | None
 
     if session is not None and not (isinstance(result, dict) and "error" in result):
         # Dados já existem em completed_sessions — só formata pra tela de conclusão.
-        last_receipt[cpf] = {
-            "vehicle_id": session.vehicle_id,
-            "charger_id": charger_id,
-            "location": location,
-            "energy_kwh": round(session.energy_consumed_kwh, 3),
-            "duration_min": round(session.duration_minutes(), 1),
-            "revenue_rs": round(session.energy_consumed_kwh * TARIFF_RS_PER_KWH, 2),
-            "completed_reason": reason,
-        }
+        last_receipt[cpf] = _build_receipt(session, charger_id, location, reason)
     return result
 
 
@@ -1095,6 +1248,7 @@ async def cliente_carregar_pagar(
     modo: str = Form(...),
     valor: float = Form(...),
     metodo_pagamento: str = Form(...),
+    tarifa: float | None = Form(None),
 ):
     account = _current_account(request)
     if not account:
@@ -1110,6 +1264,8 @@ async def cliente_carregar_pagar(
         "target_min": valor if modo == "tempo" else None,
         "target_kwh": valor if modo == "energia" else None,
     }
+    # Preço que o motorista VIU no resumo — fica travado na sessão (o backend limita à faixa válida).
+    locked_tariff = tarifa if tarifa and tarifa > 0 else current_price()
 
     if payments.PAYMENT_MODE == "mock":
         # Modo de contingência (ver .env): comportamento antigo,
@@ -1119,6 +1275,7 @@ async def cliente_carregar_pagar(
         error = await _start_client_charge(
             account, charger_id, placa, goal_fields,
             f"[MOCK] Pagamento ({metodo_pagamento}) aprovado — recarga iniciada pelo cliente {account['nome']}",
+            tariff=locked_tariff,
         )
         if error:
             return _reject_carregar(request, placa, f"Não foi possível iniciar a recarga: {error}")
@@ -1138,7 +1295,7 @@ async def cliente_carregar_pagar(
     if charger_id not in controller.chargers or controller.chargers[charger_id].is_occupied:
         return _reject_carregar(request, placa, f"A vaga {charger_id} não está mais disponível — escolha outra.")
 
-    estimate = estimate_charge(charger_id, modo, valor)
+    estimate = estimate_charge(charger_id, modo, valor, locked_tariff)
     if estimate["estimated_cost_rs"] is None:
         # Rede sem folga alguma agora (0 kW disponíveis) — não dá pra cobrar
         # um valor que nem foi possível estimar. Evita crashar create_pix_charge()
@@ -1173,6 +1330,7 @@ async def cliente_carregar_pagar(
         "qr_code": charge["qr_code"],
         "qr_code_base64": charge["qr_code_base64"],
         "valor_rs": estimate["estimated_cost_rs"],
+        "tarifa": locked_tariff,
         "created_at": datetime.now(),  # P0-8: base do timeout de ~5 min do totem
     }
     controller._log_event(
@@ -1280,7 +1438,7 @@ async def cliente_carregar_pix_status(request: Request):
         return response
 
     # status_info["status"] == "approved" — só agora conecta de verdade.
-    result = await controller.vehicle_connect(charger_id, pending["placa"])
+    result = await controller.vehicle_connect(charger_id, pending["placa"], pending.get("tarifa"))
     pix_pending.pop(account["cpf"], None)
 
     if isinstance(result, dict) and "error" in result:
@@ -1393,7 +1551,8 @@ async def cliente_carregando(request: Request, aviso: str | None = None):
     aviso_msg = "Você já tem uma recarga em andamento." if aviso == "ja_ativa" else None
     return templates.TemplateResponse(
         "cliente/carregando.html",
-        {"request": request, "charger": charger_state, "tariff": TARIFF_RS_PER_KWH,
+        {"request": request, "charger": charger_state,
+         "tariff": charger_state.get("tariff_rs_per_kwh") or current_price(),
          "site": SITE_NAME, "goal": goal, "aviso": aviso_msg},
     )
 
@@ -1558,7 +1717,7 @@ def charger_details_response(request: Request, charger_id: str) -> HTMLResponse:
     charger_state = next(c for c in payload["chargers"] if c["id"] == charger_id)
     return templates.TemplateResponse(
         "partials/charger_details.html",
-        {"request": request, "c": charger_state, "tariff": TARIFF_RS_PER_KWH},
+        {"request": request, "c": charger_state},
     )
 
 
@@ -1583,6 +1742,7 @@ async def charger_events(request: Request, charger_id: str):
 @app.post("/charger/{charger_id}/demo/payment", response_class=HTMLResponse)
 async def set_payment_status(request: Request, charger_id: str, status: str = Form(...)):
     """[DEMO] Marca o status de pagamento mockado — não é uma integração real (ver P2-13)."""
+    _require_operator(request)
     charger_id = _require_charger(charger_id)
     if status not in ("pago", "pendente"):
         raise HTTPException(status_code=400, detail="Status de pagamento inválido.")
@@ -1596,6 +1756,7 @@ async def set_payment_status(request: Request, charger_id: str, status: str = Fo
 async def set_sim_flag(request: Request, charger_id: str, flag: str = Form(...)):
     """[DEMO] Liga/desliga a flag visual de manutenção/erro — camada separada do
     DemandController, nunca entra no algoritmo de redistribuição (ver P2-12)."""
+    _require_operator(request)
     charger_id = _require_charger(charger_id)
     if flag not in ("none", "manutencao", "erro"):
         raise HTTPException(status_code=400, detail="Flag de simulação inválida.")
@@ -1608,6 +1769,7 @@ async def set_sim_flag(request: Request, charger_id: str, flag: str = Form(...))
 
 @app.post("/chat", response_class=HTMLResponse)
 async def chat(request: Request, message: str = Form(...)):
+    _require_operator(request)
     reply = chatbot.answer(message, controller)
     return templates.TemplateResponse(
         "partials/chat_message.html",
@@ -1632,7 +1794,8 @@ def _free_registered_plate() -> str | None:
 
 
 @app.post("/connect")
-async def connect(charger_id: str = Form(...), vehicle_id: str | None = Form(None)):
+async def connect(request: Request, charger_id: str = Form(...), vehicle_id: str | None = Form(None)):
+    _require_operator(request)
     charger_id = charger_id.upper()
     if charger_id not in controller.chargers:
         raise HTTPException(status_code=404, detail="Carregador não encontrado.")
@@ -1647,7 +1810,8 @@ async def connect(charger_id: str = Form(...), vehicle_id: str | None = Form(Non
 
 
 @app.post("/disconnect")
-async def disconnect(charger_id: str = Form(...)):
+async def disconnect(request: Request, charger_id: str = Form(...)):
+    _require_operator(request)
     charger_id = charger_id.upper()
     if charger_id not in controller.chargers:
         raise HTTPException(status_code=404, detail="Carregador não encontrado.")
@@ -1664,12 +1828,14 @@ async def disconnect(charger_id: str = Form(...)):
 # recarga de um CLIENTE FICTÍCIO pela mesma camada do app do cliente
 # (_start_client_charge/_finish_client_charge): meta escolhida, "minha
 # recarga", recibo e histórico ficam amarrados à conta — só o pagamento é
-# pulado. Não exigem login porque o script não tem o cookie do cliente.
+# pulado. Exigem login de operador OU o cabeçalho X-API-Key (CHARGEGRID_API_KEY); sem chave
+# configurada (dev local), aceitam chamadas da própria máquina — os scripts não têm cookie.
 # ----------------------------------------------------------------------
 
-def _require_demo() -> None:
+def _require_demo(request: Request) -> None:
     if not DEMO_MODE:
         raise HTTPException(status_code=404, detail="Modo demonstração desligado (DEMO_MODE=0).")
+    _require_operator_or_key(request)
 
 
 def _demo_account(cpf: str) -> dict:
@@ -1680,9 +1846,9 @@ def _demo_account(cpf: str) -> dict:
 
 
 @app.get("/demo/clientes")
-async def demo_clientes():
+async def demo_clientes(request: Request):
     """Os clientes fictícios (com veículos e se estão carregando agora) — é daqui que os scripts de demo escolhem quem usar."""
-    _require_demo()
+    _require_demo(request)
     return JSONResponse([
         {
             "cpf": a["cpf"], "nome": a["nome"], "email": a["email"], "senha": demo_seed.DEMO_PASSWORD,
@@ -1695,13 +1861,14 @@ async def demo_clientes():
 
 @app.post("/demo/cliente/iniciar")
 async def demo_cliente_iniciar(
+    request: Request,
     cpf: str = Form(...),
     charger_id: str = Form(...),
     placa: str = Form(""),
     modo: str = Form("tempo"),
     valor: float = Form(30.0),
 ):
-    _require_demo()
+    _require_demo(request)
     account = _demo_account(cpf)
     charger_id = charger_id.upper()
     if charger_id not in controller.chargers:
@@ -1729,8 +1896,8 @@ async def demo_cliente_iniciar(
 
 
 @app.post("/demo/cliente/encerrar")
-async def demo_cliente_encerrar(cpf: str = Form(...)):
-    _require_demo()
+async def demo_cliente_encerrar(request: Request, cpf: str = Form(...)):
+    _require_demo(request)
     account = _demo_account(cpf)
     result = await _finish_client_charge(account["cpf"], "manual")
     if result is None:
@@ -1741,7 +1908,8 @@ async def demo_cliente_encerrar(cpf: str = Form(...)):
 
 
 @app.get("/sessions")
-async def sessions():
+async def sessions(request: Request):
+    _require_operator(request)
     return JSONResponse(completed_sessions_payload())
 
 
@@ -1751,6 +1919,11 @@ async def sessions():
 
 @app.websocket("/ws")
 async def ws_endpoint(websocket: WebSocket):
+    # O estado em tempo real só vai para quem está logado (operador OU cliente).
+    if (company_store.get_company_from_token(websocket.cookies.get(company_store.SESSION_COOKIE)) is None
+            and client_store.get_account_from_token(websocket.cookies.get(client_store.SESSION_COOKIE)) is None):
+        await websocket.close(code=1008)
+        return
     await manager.connect(websocket)
     try:
         await websocket.send_json(build_payload())

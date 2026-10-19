@@ -27,8 +27,14 @@
     <dt>Energia consumida</dt>
     <dd>{{ '%.3f'|format(c.energy_kwh) if c.energy_kwh is not none else '—' }} kWh</dd>
 
-    <dt>Custo estimado</dt>
-    <dd>{% if c.energy_kwh is not none %}{{ (c.energy_kwh * tariff)|brl }}{% else %}—{% endif %}</dd>
+    <dt>Tarifa da sessão</dt>
+    <dd>{% if c.tariff_rs_per_kwh is not none %}{{ c.tariff_rs_per_kwh|brl }}/kWh (travada){% else %}—{% endif %}</dd>
+
+    <dt>Energia solar</dt>
+    <dd>{{ '%.3f'|format(c.green_kwh) if c.green_kwh is not none else '—' }} kWh</dd>
+
+    <dt>Custo parcial</dt>
+    <dd>{% if c.cost_rs is not none %}{{ c.cost_rs|brl }}{% else %}—{% endif %}</dd>
   </dl>
 
   {% if c.status == 'OCUPADO' %}

@@ -1,0 +1,45 @@
+{#
+  Gráfico de faturamento com abas Dia | Semana | Mês. É servido por
+  GET /dashboard/faturamento/grafico?periodo=... e se troca inteiro (HTMX outerHTML),
+  também a cada 30 s para acompanhar o dia. Barras reaproveitam .forecast-bar-col para
+  o tooltip visual (static/chart-tip.js). Barra vermelha = hora/dia de hoje.
+#}
+{% macro tab(key, text) %}
+  <button type="button" role="tab" class="rev-tab{{ ' active' if periodo == key else '' }}" aria-selected="{{ 'true' if periodo == key else 'false' }}"
+          hx-get="/dashboard/faturamento/grafico?periodo={{ key }}" hx-target="#revenue-chart" hx-swap="outerHTML">{{ text }}</button>
+{% endmacro %}
+<div id="revenue-chart" class="rev-chart" hx-get="/dashboard/faturamento/grafico?periodo={{ periodo }}" hx-trigger="every 30s" hx-swap="outerHTML">
+  <div class="rev-head">
+    <div class="rev-tabs" role="tablist" aria-label="Período do gráfico de faturamento">
+      {{ tab("dia", "Dia") }}{{ tab("semana", "Semana") }}{{ tab("mes", "Mês") }}
+    </div>
+  </div>
+  {% if chart %}
+  <div class="rev-summary">
+    <div class="rev-title">{{ chart.title }} · {{ chart.range_label }}</div>
+    <div class="rev-total mono">{{ chart.total|brl }}</div>
+    <div class="rev-meta">
+      <span class="rev-delta {{ chart.delta_tone }}">{{ chart.delta_text }}</span>
+      <span class="rev-sub">{{ chart.sessions }} sessões · {{ '%.1f'|format(chart.kwh) }} kWh</span>
+    </div>
+  </div>
+  <div class="rev-plot">
+    <div class="rev-yaxis" aria-hidden="true">{% for t in chart.ticks %}<span>{{ t }}</span>{% endfor %}</div>
+    <div class="rev-area">
+      <div class="rev-grid" aria-hidden="true"><i></i><i></i><i></i></div>
+      <div class="forecast-bars rev-bars" role="img" aria-label="{{ chart.title }}, {{ chart.range_label }}: total {{ chart.total|brl }}">
+        {% for b in chart.bars %}
+        <div class="forecast-bar-col" tabindex="0" data-tip data-tip-tone="neutral"
+             data-tip-head="{{ b.head }}" data-tip-main="{{ b.main }}" data-tip-detail="{{ b.detail }}">
+          <div class="forecast-bar rev{{ ' current' if b.is_current else '' }}{{ ' future' if b.is_future else '' }}" style="height: {{ b.height }}%;"></div>
+          <span class="forecast-bar-label">{{ b.label or '&nbsp;'|safe }}</span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  <p class="rev-caption">{{ chart.caption }}</p>
+  {% else %}
+  <p class="rev-caption">Sem dados de faturamento no momento (backend indisponível).</p>
+  {% endif %}
+</div>

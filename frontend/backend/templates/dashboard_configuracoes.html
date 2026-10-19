@@ -26,7 +26,7 @@
 
   <div class="dash-stack">
 
-  {% from "partials/editable.html" import editable_row, password_row, edit_actions %}
+  {% from "partials/editable.html" import editable_row, static_row, password_row, edit_actions %}
 
   {% if saved %}
   <div class="banner-info" style="border-style:solid; color:var(--available);">Configurações salvas.</div>
@@ -66,15 +66,71 @@
   <section class="panel" aria-labelledby="h-config-operacional">
     <h2 id="h-config-operacional"><i data-lucide="settings" class="panel-icon" aria-hidden="true"></i>Configurações operacionais</h2>
 
-    <h3 class="edit-subtitle">Tarifa vigente</h3>
+    <h3 class="edit-subtitle">Tarifa dinâmica</h3>
+    <p class="billing-note" style="margin-top:0;">
+      Preço do kWh = tarifa-base × multiplicador. O multiplicador varia conforme a demanda que a IA prevê para a rede:
+      mais barato nos horários vazios, mais caro nos de pico. Passe o mouse no <b>i</b> de cada item para ver o que ele faz.
+      Referência de mercado (ago/2026): recarga rápida pública R$ 1,80–2,50/kWh.
+    </p>
+    {# Formulário vazio FORA do de edição (forms não aninham): alvo do botão "Voltar ao automático". #}
+    <form id="form-tarifa-auto" method="post" action="/dashboard/configuracoes/tarifa-auto"></form>
+
     <form method="post" action="/dashboard/configuracoes/tarifa" class="edit-form" data-edit-form
           {{ 'data-start-editing' if edit_section == 'tarifa' else '' }}>
       {% if error and edit_section == 'tarifa' %}<div class="field-error">{{ error }}</div>{% endif %}
-      {{ editable_row("tarifa", "Valor por kWh", "tarifa",
-                      '%g'|format(form.tarifa) if form.tarifa is defined else ('%g'|format(tariff)),
+      {% set t = tariff_cfg %}
+      {{ editable_row("tarifa_base", "Tarifa-base", "base",
+                      '%g'|format(form.base) if form.base is defined else ('%g'|format(t.base_rs_per_kwh or 0)),
                       type="number", suffix="R$ / kWh", extra='step="0.01" min="0.01"',
-                      original='%g'|format(tariff)) }}
+                      original='%g'|format(t.base_rs_per_kwh or 0),
+                      info="Preço de referência do kWh, cobrado quando a rede está em condição normal. Os multiplicadores abaixo sobem ou descem este valor.") }}
+      {{ editable_row("min_mult", "Preço nos horários vazios", "min_mult",
+                      '%g'|format(form.min_mult) if form.min_mult is defined else ('%g'|format(t.min_multiplier or 0)),
+                      type="number", suffix="× a tarifa-base", extra='step="0.01" min="0.1" max="1"',
+                      original='%g'|format(t.min_multiplier or 0),
+                      info="Quanto da tarifa-base é cobrado quando há folga na rede. 0,75 significa 25% de desconto — incentiva o motorista a recarregar fora do pico.") }}
+      {{ editable_row("max_mult", "Preço nos horários de pico", "max_mult",
+                      '%g'|format(form.max_mult) if form.max_mult is defined else ('%g'|format(t.max_multiplier or 0)),
+                      type="number", suffix="× a tarifa-base", extra='step="0.01" min="1" max="3"',
+                      original='%g'|format(t.max_multiplier or 0),
+                      info="Quanto da tarifa-base é cobrado quando a rede está cheia. 1,30 significa 30% a mais — ajuda a deslocar a demanda e a proteger a demanda contratada.") }}
+      {{ static_row("Faixa de preço", (t.min_price_rs_per_kwh or 0)|brl ~ " a " ~ (t.max_price_rs_per_kwh or 0)|brl ~ " por kWh", bold=true,
+                    info="Menor e maior preço que o motorista pode ver, resultado da tarifa-base × os dois multiplicadores. O preço é travado no início de cada recarga.") }}
+
+      <details class="edit-advanced" {{ 'open' if (edit_section == 'tarifa' or t.pressure_auto == false) else '' }}>
+        <summary>Avançado — calibração da IA
+          <span class="auto-badge {{ 'on' if t.pressure_auto else '' }}">{{ 'automática' if t.pressure_auto else 'manual' }}</span>
+        </summary>
+        {% if t.pressure_auto %}
+        <p class="auto-note">A IA ajusta estes dois limites sozinha a cada re-treino, a partir da demanda prevista para a próxima semana
+          (10% das horas mais vazias e 10% das mais cheias). Só mexa se quiser forçar outra regra — editar passa para o modo manual.</p>
+        {% else %}
+        <p class="auto-note">Valores definidos manualmente.
+          <button type="submit" form="form-tarifa-auto" class="edit-link">Voltar à calibração automática</button></p>
+        {% endif %}
+        {{ editable_row("low_pct", "Rede tranquila até", "low_pct",
+                        '%g'|format(form.low_pct) if form.low_pct is defined else ('%g'|format(t.low_pressure_pct or 0)),
+                        type="number", suffix="% da potência utilizável", extra='step="1" min="0"',
+                        original='%g'|format(t.low_pressure_pct or 0),
+                        info="Até este nível de uso da rede o kWh fica no preço mínimo. É a pressão (demanda prevista menos o solar, em % da potência utilizável) abaixo da qual o horário é considerado vazio.") }}
+        {{ editable_row("high_pct", "Rede cheia a partir de", "high_pct",
+                        '%g'|format(form.high_pct) if form.high_pct is defined else ('%g'|format(t.high_pressure_pct or 0)),
+                        type="number", suffix="% da potência utilizável", extra='step="1" min="1"',
+                        original='%g'|format(t.high_pressure_pct or 0),
+                        info="A partir deste nível de uso da rede o kWh fica no preço máximo. Entre os dois limites o preço sobe de forma gradual.") }}
+      </details>
       {{ edit_actions("Salvar tarifa") }}
+    </form>
+
+    <h3 class="edit-subtitle">Energia solar</h3>
+    <form method="post" action="/dashboard/configuracoes/solar" class="edit-form" data-edit-form
+          {{ 'data-start-editing' if edit_section == 'solar' else '' }}>
+      {% if error and edit_section == 'solar' %}<div class="field-error">{{ error }}</div>{% endif %}
+      {{ editable_row("peak_kw", "Potência instalada", "peak_kw", '%g'|format(solar.solar_peak_kw or 0),
+                      type="number", suffix="kWp", extra='step="any" min="0"',
+                      original='%g'|format(solar.solar_peak_kw or 0),
+                      info="Potência de pico dos painéis fotovoltaicos do local. O sistema usa este valor para estimar a geração ao longo do dia: o solar soma ao orçamento dos carregadores e alivia a rede, o que também baixa a tarifa. Use 0 se o local não tem solar.") }}
+      {{ edit_actions("Salvar solar") }}
     </form>
 
     <h3 class="edit-subtitle">Potência da rede</h3>
@@ -86,7 +142,8 @@
       {{ editable_row("contratada_kw", "kW contratados", "contratada_kw",
                       '%g'|format(form.contratada_kw) if form.contratada_kw is defined else kw_atual,
                       type="number", suffix="kW", extra='step="any" min="1"',
-                      hint="Demanda contratada com a distribuidora.", original=kw_atual) }}
+                      hint="Demanda contratada com a distribuidora.", original=kw_atual,
+                      info="Potência máxima que o local pode puxar da rede, conforme o contrato com a distribuidora. Passar dela gera multa, por isso o sistema nunca ultrapassa o limite abaixo.") }}
       {{ editable_row("limite_uso_pct", "Limite de uso antes da redução de potência", "limite_uso_pct",
                       '%g'|format(form.limite_uso_pct) if form.limite_uso_pct is defined else pct_atual,
                       type="number", suffix="%",
@@ -104,6 +161,25 @@
     <div class="billing-note">
       Definido por variável de ambiente (<code>.env</code>) — trocar exige reiniciar o servidor, então não é editável por aqui.
     </div>
+  </section>
+
+  {# ------------------------------------------------------- Modo demonstração #}
+  <section class="panel demo-panel" aria-labelledby="h-config-demo">
+    <h2 id="h-config-demo"><i data-lucide="presentation" class="panel-icon" aria-hidden="true"></i>Modo demonstração</h2>
+    <p class="billing-note" style="margin-top:0;">
+      Só para apresentações: congela o horário usado pela simulação solar, para mostrar o sistema em qualquer hora do dia
+      sem esperar. Não altera nenhuma configuração acima. Em uso real, deixe em “Relógio real”.
+    </p>
+    <form method="post" action="/dashboard/configuracoes/demo" class="demo-form">
+      <label class="edit-label" for="solar_hora">Hora da simulação solar</label>
+      <select id="solar_hora" name="hora">
+        <option value="real" {{ 'selected' if solar.sim_hour is none else '' }}>Relógio real (agora)</option>
+        {% for h in [6, 8, 10, 12, 14, 16, 18, 19, 21] %}
+        <option value="{{ h }}" {{ 'selected' if solar.sim_hour == h else '' }}>Congelar em {{ h }}h</option>
+        {% endfor %}
+      </select>
+      <button type="submit" class="btn-secondary">Aplicar</button>
+    </form>
   </section>
 
   </div>
@@ -128,6 +204,7 @@
     update();  // estado inicial (inclui a tela reaberta com erro, com os valores digitados)
   })();
   </script>
+  <script src="/static/chart-tip.js"></script>
   <script src="/static/app.js"></script>
   <script>ChargeGrid.init({ page: "dashboard" });</script>
 </body>

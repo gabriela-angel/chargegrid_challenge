@@ -1,5 +1,13 @@
+# ambientes e segredos
+venv/
 .venv/
+.env
+frontend/.env
+
+# cache
 __pycache__/
 *.pyc
-.env 
-venv/
+.pytest_cache/
+
+# WSL / Windows Alternate Data Streams metadata
+*Zone.Identifier

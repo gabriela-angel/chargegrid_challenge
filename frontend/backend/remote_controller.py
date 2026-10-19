@@ -32,7 +32,7 @@ a requisição HTTP e, se der certo, atualizam o cache antes de devolver.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import httpx
 
@@ -51,6 +51,10 @@ class _SessionView:
         self.allocated_kw = data.get("allocated_kw", 0.0)
         self.started_at = _parse_iso(data.get("started_at"))
         self._duration_min = data.get("duration_min") or 0.0
+        # Preço travado na sessão e energia solar — calculados pelo backend real.
+        self.tariff_rs_per_kwh = data.get("tariff_rs_per_kwh") or 0.0
+        self.cost_rs = data.get("cost_rs") or 0.0
+        self.green_kwh = data.get("green_kwh") or 0.0
 
     def duration_minutes(self) -> float:
         # Sessões ATIVAS: duration_min já vem calculado no snapshot (fresco
@@ -79,9 +83,11 @@ class _ChargerView:
 
 
 class RemoteController:
-    def __init__(self, base_url: str):
+    def __init__(self, base_url: str, api_key: str = ""):
         self.base_url = base_url.rstrip("/")
-        self._client = httpx.AsyncClient(base_url=self.base_url, timeout=6.0)
+        # Com chave configurada, o backend exige X-API-Key em toda chamada /api/*.
+        headers = {"X-API-Key": api_key} if api_key else {}
+        self._client = httpx.AsyncClient(base_url=self.base_url, timeout=6.0, headers=headers)
 
         self._snapshot: dict = {
             "site": "", "contracted_limit_kw": 0.0, "usable_limit_kw": 0.0, "usable_limit_pct": 0.0,
@@ -89,6 +95,7 @@ class RemoteController:
             "active_sessions": 0, "chargers": [], "events": [],
         }
         self._completed_raw: list[dict] = []
+        self._tariff_forecast: dict | None = None   # cache de /api/tariff/proximas-horas (curva de preço da IA)
 
         # Eventos de UI/demo (pagamento aprovado, flag de manutenção, Pix
         # criado...) — não existem no backend real, que só sabe de eventos
@@ -112,9 +119,28 @@ class RemoteController:
         resp.raise_for_status()
         self._completed_raw = resp.json()
 
+    async def refresh_tariff(self) -> None:
+        """Curva de preço das próximas 24h (tarifa dinâmica da IA). Cache — muda devagar,
+        então o ticker só renova a cada ~30s. Se o backend/modelo não responder, mantém o último."""
+        try:
+            resp = await self._client.get("/api/tariff/proximas-horas?n=24")
+            if resp.status_code == 200:
+                self._tariff_forecast = resp.json()
+        except httpx.HTTPError:
+            pass
+
     # ------------------------------------------------------------------
     # Leituras — síncronas, servidas do cache (self._snapshot)
     # ------------------------------------------------------------------
+
+    @property
+    def tariff(self) -> dict:
+        """Preço do kWh AGORA (tarifa dinâmica), vindo do snapshot do backend."""
+        return self._snapshot.get("tariff") or {}
+
+    @property
+    def tariff_forecast(self) -> dict | None:
+        return self._tariff_forecast
 
     def _state_snapshot(self) -> dict:
         snap = dict(self._snapshot)
@@ -132,6 +158,15 @@ class RemoteController:
     @property
     def completed_sessions(self) -> list[_SessionView]:
         return [_SessionView(s) for s in self._completed_raw]
+
+    @property
+    def today_completed_sessions(self) -> list[_SessionView]:
+        """Sessões concluídas HOJE (pela hora em que terminaram). O histórico guarda
+        vários dias; os números "de hoje" do painel não podem somar tudo."""
+        today = datetime.now().date()
+        return [s for s in self.completed_sessions
+                if s.started_at is not None
+                and (s.started_at + timedelta(minutes=s.duration_minutes())).date() == today]
 
     @property
     def available_kw(self) -> float:
@@ -161,10 +196,13 @@ class RemoteController:
     # Ações — assíncronas de verdade, mudam o estado no backend real
     # ------------------------------------------------------------------
 
-    async def vehicle_connect(self, charger_id: str, vehicle_id: str) -> dict:
-        resp = await self._client.post(
-            f"/api/chargers/{charger_id}/connect", json={"vehicle_id": vehicle_id}
-        )
+    async def vehicle_connect(self, charger_id: str, vehicle_id: str,
+                              tariff_rs_per_kwh: float | None = None) -> dict:
+        """`tariff_rs_per_kwh`: preço que o motorista viu (fica travado na sessão)."""
+        body = {"vehicle_id": vehicle_id}
+        if tariff_rs_per_kwh is not None:
+            body["tariff_rs_per_kwh"] = tariff_rs_per_kwh
+        resp = await self._client.post(f"/api/chargers/{charger_id}/connect", json=body)
         if resp.status_code >= 400:
             return {"error": resp.json().get("detail", "Erro ao conectar.")}
         await self.refresh()
@@ -219,6 +257,76 @@ class RemoteController:
                 detail = "Valor inválido."
             return {"error": detail}
         await self.refresh()
+        return resp.json()
+
+    async def get_tariff_config(self) -> dict | None:
+        try:
+            resp = await self._client.get("/api/tariff/config")
+            resp.raise_for_status()
+            return resp.json()
+        except httpx.HTTPError:
+            return None
+
+    async def update_tariff_config(self, **fields) -> dict:
+        """Altera a tarifa dinâmica no backend. Devolve a config nova ou {"error": mensagem}."""
+        try:
+            resp = await self._client.put("/api/tariff/config", json=fields)
+        except httpx.HTTPError:
+            return {"error": "Não foi possível falar com o backend agora — tente novamente."}
+        if resp.status_code >= 400:
+            detail = resp.json().get("detail", "Erro ao salvar.")
+            return {"error": "Valor inválido." if isinstance(detail, list) else detail}
+        await self.refresh()
+        await self.refresh_tariff()
+        return resp.json()
+
+    async def get_solar(self) -> dict | None:
+        try:
+            resp = await self._client.get("/api/solar")
+            resp.raise_for_status()
+            return resp.json()
+        except httpx.HTTPError:
+            return None
+
+    async def update_solar(self, peak_kw: float | None = None, sim_hour: float | None = None,
+                           set_sim_hour: bool = False) -> dict:
+        """Potência FV instalada e/ou hora solar congelada (demo). set_sim_hour=True com
+        sim_hour=None volta ao relógio real."""
+        body: dict = {}
+        if peak_kw is not None:
+            body["peak_kw"] = peak_kw
+        if set_sim_hour:
+            body["sim_hour"] = sim_hour
+        try:
+            resp = await self._client.put("/api/solar/config", json=body)
+        except httpx.HTTPError:
+            return {"error": "Não foi possível falar com o backend agora — tente novamente."}
+        if resp.status_code >= 400:
+            detail = resp.json().get("detail", "Erro ao salvar.")
+            return {"error": "Valor inválido." if isinstance(detail, list) else detail}
+        await self.refresh()
+        await self.refresh_tariff()
+        return resp.json()
+
+    async def get_billing_series(self, period: str) -> dict | None:
+        """Barras de faturamento (hora ou dia) calculadas pelo backend real
+        (GET /api/billing/series). None se o backend não responder."""
+        try:
+            resp = await self._client.get("/api/billing/series", params={"period": period})
+            resp.raise_for_status()
+            return resp.json()
+        except httpx.HTTPError:
+            return None
+
+    async def retrain_model(self) -> dict:
+        """Re-treina a IA no backend com o histórico atual (POST /api/predictions/retrain)
+        e renova a curva de preço, que depende do modelo. Devolve as métricas ou {"error"}."""
+        try:
+            resp = await self._client.post("/api/predictions/retrain", timeout=30.0)
+            resp.raise_for_status()
+        except httpx.HTTPError as exc:
+            return {"error": str(exc)}
+        await self.refresh_tariff()
         return resp.json()
 
     async def get_predictions(self, hours: int = 24) -> list[dict] | None:

@@ -37,7 +37,8 @@ from pathlib import Path
 
 OUTPUT_PATH = Path(__file__).parent / "data" / "historico_simulado.csv"
 DIAS_DE_HISTORICO = 90       # ~3 meses
-USABLE_LIMIT_KW = 95.0       # mesmo limite útil do core/state.py (100kW - 5% margem)
+USABLE_LIMIT_KW = 90.0       # mesmo limite útil do core/state.py (100 kW contratados × 90%)
+RANDOM_SEED = 42             # histórico reprodutível: mesmo CSV → mesmas métricas do README
 
 
 def _demanda_base(hour: float, is_weekend: bool) -> float:
@@ -65,6 +66,7 @@ def _demanda_base(hour: float, is_weekend: bool) -> float:
 
 
 def gerar_historico(dias: int = DIAS_DE_HISTORICO) -> list[dict]:
+    random.seed(RANDOM_SEED)
     linhas = []
     inicio = datetime.now() - timedelta(days=dias)
 

@@ -30,9 +30,9 @@
       <div class="unifilar-hero">
         <span class="pct-hero mono" id="bus-pct">{{ '%.1f'|format(state.utilization_pct) }}%</span>
         <div class="kw-detail">
-          <span class="num" id="bus-allocated">{{ '%.1f'|format(state.total_allocated_kw) }}</span>
+          <span class="num" id="bus-allocated">{{ '%.1f'|format(state.grid_draw_kw) }}</span>
           <span class="num">/ <span id="bus-usable">{{ '%.1f'|format(state.usable_limit_kw) }}</span> kW</span>
-          <span class="contracted-note">de <span id="bus-contracted">{{ '%g'|format(state.contracted_limit_kw) }}</span> kW contratados</span>
+          <span class="contracted-note">da rede, de <span id="bus-contracted">{{ '%g'|format(state.contracted_limit_kw) }}</span> kW contratados · + <span id="bus-solar">{{ '%.1f'|format(state.solar_kw) }}</span> kW de solar</span>
         </div>
         <span id="bus-level-badge" class="level-badge {{ 'hidden' if state.utilization_level == 'ok' else '' }}">
           {% if state.utilization_level == 'critical' %}⚠ acima do limite contratado{% elif state.utilization_level == 'warning' %}⚠ utilização ≥ 90%{% endif %}
@@ -124,19 +124,9 @@
       <div class="billing-row"><span>Duração média da sessão</span><span class="val" id="billing-avg-duration">{{ '%.1f'|format(state.billing.avg_duration_min) ~ ' min' if state.billing.avg_duration_min is not none else '—' }}</span></div>
       <div class="billing-note">médias sobre <span id="billing-completed-count">{{ state.billing.completed_sessions_count }}</span> sessão(ões) já concluída(s)</div>
 
-      <svg id="profit-curve" viewBox="0 0 {{ state.billing.curve_svg.width }} {{ state.billing.curve_svg.height }}" role="img" aria-label="Faturamento acumulado ao longo do dia, a partir das sessões reais">
-        <defs>
-          <linearGradient id="profit-gradient" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" class="profit-gradient-start"></stop>
-            <stop offset="100%" class="profit-gradient-end"></stop>
-          </linearGradient>
-        </defs>
-        <path class="profit-area" d="{{ state.billing.curve_svg.area_path }}" fill="url(#profit-gradient)" stroke="none"></path>
-        <line class="profit-baseline" x1="0" y1="{{ state.billing.curve_svg.baseline_y }}" x2="{{ state.billing.curve_svg.width }}" y2="{{ state.billing.curve_svg.baseline_y }}"></line>
-        <path class="profit-line" d="{{ state.billing.curve_svg.path }}"></path>
-        <circle class="profit-marker" cx="{{ state.billing.curve_svg.marker_x }}" cy="{{ state.billing.curve_svg.marker_y }}" r="3.5"></circle>
-      </svg>
-      <div class="profit-caption">Faturamento acumulado hoje, degrau a cada sessão concluída</div>
+      <div id="revenue-chart" class="rev-chart" hx-get="/dashboard/faturamento/grafico?periodo=dia" hx-trigger="load" hx-swap="outerHTML">
+        <p class="rev-caption">Carregando gráfico de faturamento…</p>
+      </div>
     </section>
 
   </section>
@@ -156,6 +146,7 @@
   {% include "partials/chat_widget.html" %}
 
   <script src="/static/app.js"></script>
+  <script src="/static/chart-tip.js"></script>
   <script>ChargeGrid.init({ page: "dashboard" });</script>
 </body>
 </html>

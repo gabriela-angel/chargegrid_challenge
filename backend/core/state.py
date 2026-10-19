@@ -14,7 +14,11 @@ esperado nessa fase. Persistência de histórico fica pro Postgres
 (Transactions), não pro estado em tempo real.
 """
 
+from datetime import datetime
+
 from core.demand_controller import DemandController, DEFAULT_SAFETY_MARGIN_PCT
+from core.hardware import HardwareLink
+from ai.predictor import predict_hour
 
 # CG-01 é o carregador "físico": o ESP32 vai chamar os endpoints
 # /api/chargers/CG-01/connect e /disconnect via WiFi.
@@ -39,6 +43,21 @@ def build_controller() -> DemandController:
     )
     for charger_id, max_kw, location in CHARGERS:
         controller.register_charger(charger_id, max_kw, location)
+
+    # A tarifa dinâmica usa a previsão da IA como "pressão esperada" da rede.
+    # Se o modelo ainda não foi treinado, o controller cai para a pressão ao vivo.
+    def forecast_kw(when: datetime) -> float:
+        try:
+            return predict_hour(when.hour, when.weekday())
+        except FileNotFoundError:
+            return 0.0
+
+    controller.forecast_provider = forecast_kw
+    controller.calibrate_tariff_pressure()   # limiares da tarifa vêm da previsão da IA (se houver modelo)
+
+    # Hardware via Modbus TCP: só ligado com HARDWARE_MODE=modbus (ver core/hardware.py).
+    # Aponta para o simulador (python -m simulator.hca_g2_sim) ou para o HCA G2 real.
+    controller.hardware = HardwareLink.from_env()
     return controller
 
 

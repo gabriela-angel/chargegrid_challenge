@@ -1,11 +1,11 @@
 """
 ChargeGrid Intelligence — Contas de cliente (demo)
 ---------------------------------------------------
-Cadastro/login simplificado do App do Cliente. Em memória, sem hashing de
-senha e sem persistência em disco — mesmo padrão "sem banco de dados" do
-resto do sistema (ver payment_status/sim_flags em main.py). NÃO é um
-mecanismo de autenticação real; existe só para a demo saber "qual cliente
-está logado" e para amarrar isso à sessão de recarga que ele iniciou.
+Cadastro/login do App do Cliente. Em memória e sem persistência em disco —
+mesmo padrão "sem banco de dados" do resto do sistema (ver payment_status/
+sim_flags em main.py). As senhas são guardadas só como hash scrypt
+(security.py), nunca em texto. Serve para a demo saber "qual cliente está
+logado" e amarrar isso à sessão de recarga que ele iniciou.
 
 Contrato: normalize_cpf/create_account/check_login/start_session/
 end_session/get_account_from_token — main.py só chama essas funções,
@@ -14,6 +14,8 @@ nunca mexe nos dicts internos diretamente.
 
 import re
 import secrets
+
+from security import hash_password, verify_password
 
 # cpf normalizado (só dígitos) -> conta
 accounts: dict[str, dict] = {}
@@ -38,7 +40,7 @@ def create_account(nome: str, cpf: str, email: str, senha: str) -> dict:
         "nome": nome.strip(),
         "cpf": cpf_norm,
         "email": email.strip(),
-        "senha": senha,  # plaintext — demo, sem segurança real (definido com o usuário)
+        "senha_hash": hash_password(senha),  # nunca guarda a senha em texto
         "veiculos": [],  # placas já usadas por essa conta, para o histórico (P1)
         "veiculos_cadastrados": [],  # [{modelo, placa}] cadastrados pela conta (P0-1)
     }
@@ -48,7 +50,7 @@ def create_account(nome: str, cpf: str, email: str, senha: str) -> dict:
 
 def check_login(cpf: str, senha: str) -> dict | None:
     account = accounts.get(normalize_cpf(cpf))
-    if account and account["senha"] == senha:
+    if account and verify_password(senha, account["senha_hash"]):
         return account
     return None
 
@@ -135,7 +137,7 @@ def update_account(cpf: str, nome: str | None = None, email: str | None = None,
     if email is not None and email.strip():
         account["email"] = email.strip()
     if senha:
-        account["senha"] = senha
+        account["senha_hash"] = hash_password(senha)
     return account
 
 

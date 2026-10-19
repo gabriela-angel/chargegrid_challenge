@@ -35,6 +35,21 @@
     <div class="billing-row"><span>Faturamento acumulado</span><span class="val">{{ billing.revenue_today_rs|brl }}</span></div>
     <div class="billing-row"><span>Ticket médio</span><span class="val">{{ billing.avg_ticket_rs|brl if billing.avg_ticket_rs is not none else '—' }}</span></div>
     <div class="billing-note">ticket médio calculado sobre {{ billing.completed_sessions_count }} sessão(ões) já concluída(s)</div>
+    <div id="revenue-chart" class="rev-chart" hx-get="/dashboard/faturamento/grafico?periodo=dia" hx-trigger="load" hx-swap="outerHTML">
+      <p class="rev-caption">Carregando gráfico de faturamento…</p>
+    </div>
+  </section>
+
+  <section class="panel" aria-labelledby="h-tarifa">
+    <h2 id="h-tarifa"><i data-lucide="circle-dollar-sign" class="panel-icon" aria-hidden="true"></i>Tarifa dinâmica (IA) e energia solar</h2>
+    <p style="color:var(--ink-mid); font-size:0.85rem; margin-top:-0.4rem;">
+      A IA prevê a demanda de cada hora; quanto maior a pressão prevista na rede (descontado o solar), mais cara a tarifa —
+      incentivo para o motorista carregar em horários mais folgados. O preço fica travado na conexão de cada sessão.
+    </p>
+    {% include "partials/price_strip.html" %}
+    <div class="billing-row"><span>Energia solar entregue</span><span class="val">{{ '%.2f'|format(state.green_kwh_total) }} kWh ({{ '%.1f'|format(state.green_share_pct) }}%)</span></div>
+    <div class="billing-row"><span>CO₂ evitado</span><span class="val">{{ '%.3f'|format(state.co2_avoided_kg) }} kg</span></div>
+    <div class="billing-note">CO₂ calculado com o fator médio do SIN (~0,025 kgCO₂/kWh, MCTI 2025) — baixo porque a matriz brasileira já é muito renovável; o ganho principal do solar aqui é aliviar o pico na rede.</div>
   </section>
 
   <section class="panel" aria-labelledby="h-previsao">
@@ -50,9 +65,11 @@
         {% for point in forecast %}
         {% set pct = point.pct_of_limit %}
         {% set severity = 'critical' if pct >= 85 else ('warn' if pct >= 60 else 'ok') %}
-        <div class="forecast-bar-col">
-          <div class="forecast-bar {{ severity }}" style="height: {{ [pct, 100]|min }}%;"
-               title="{{ point.hour }}h — {{ point.predicted_kw }} kW ({{ pct }}% do limite)"></div>
+        <div class="forecast-bar-col" tabindex="0" data-tip data-tip-tone="{{ severity }}"
+             data-tip-head="{{ point.hour }}h" data-tip-main="{{ point.predicted_kw }} kW"
+             data-tip-pill="{{ 'risco de pico' if severity == 'critical' else ('atenção' if severity == 'warn' else 'folgado') }}"
+             data-tip-detail="{{ pct }}% do limite contratado">
+          <div class="forecast-bar {{ severity }}" style="height: {{ [pct, 100]|min }}%;"></div>
           {% if loop.index0 % 3 == 0 %}
           <span class="forecast-bar-label">{{ point.hour }}h</span>
           {% else %}
@@ -81,6 +98,7 @@
   {% include "partials/chat_widget.html" %}
 
   <script src="/static/app.js"></script>
+  <script src="/static/chart-tip.js"></script>
   <script>ChargeGrid.init({ page: "dashboard" });</script>
 </body>
 </html>

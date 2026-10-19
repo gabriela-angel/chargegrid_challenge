@@ -1,0 +1,41 @@
+{#
+  Curva do preço do kWh nas próximas 24h (tarifa dinâmica guiada pela IA).
+  Escala relativa (a barra mais baixa não é R$ 0). `hide_now` oculta o cabeçalho de preço atual.
+  Uso: {% include "partials/price_strip.html" %}  — espera `tariff_forecast` no contexto.
+  Cores por nível: baixa (verde), normal (neutro), alta (âmbar) — o preço sobe com a
+  pressão prevista na rede, para estimular carregar fora do pico.
+#}
+{% if tariff_forecast and tariff_forecast.forecast %}
+{% set pts = tariff_forecast.forecast %}
+{% set pmax = pts|map(attribute='price_rs_per_kwh')|max %}
+{% set pmin = pts|map(attribute='price_rs_per_kwh')|min %}
+<div class="price-strip">
+  {% if not hide_now %}
+  <div class="price-now">
+    <div>
+      <span class="price-label">Preço do kWh agora</span>
+      <span class="price-value mono">{{ tariff_forecast.now.price_rs_per_kwh|brl }}</span>
+    </div>
+    <span class="level-pill {{ tariff_forecast.now.level }}">tarifa {{ tariff_forecast.now.level }}</span>
+  </div>
+  {% endif %}
+  <div class="forecast-bars price-bars" role="img" aria-label="Preço do kWh nas próximas 24 horas">
+    {% for p in pts %}
+    <div class="forecast-bar-col" tabindex="0" data-tip
+         data-tip-tone="{{ 'ok' if p.level == 'baixa' else ('warn' if p.level == 'alta' else 'neutral') }}"
+         data-tip-head="{{ p.hour }}h" data-tip-main="{{ p.price_rs_per_kwh|brl }}/kWh"
+         data-tip-pill="tarifa {{ p.level }}"
+         data-tip-detail="Pressão na rede {{ p.pressure_pct }}% · solar {{ p.solar_kw }} kW">
+      <div class="forecast-bar price-bar {{ p.level }}" style="height: {{ (25 + 75 * ((p.price_rs_per_kwh - pmin) / ((pmax - pmin) or 1)))|round(0) }}%;"></div>
+      <span class="forecast-bar-label">{% if loop.index0 % 3 == 0 %}{{ p.hour }}h{% else %}&nbsp;{% endif %}</span>
+    </div>
+    {% endfor %}
+  </div>
+  {% if tariff_forecast.saving_vs_now_pct >= 5 %}
+  <p class="price-tip">Mais barato às <b>{{ tariff_forecast.cheapest_hour }}h</b>:
+    {{ tariff_forecast.cheapest_price_rs_per_kwh|brl }}/kWh — {{ '%.0f'|format(tariff_forecast.saving_vs_now_pct) }}% menos que agora.</p>
+  {% else %}
+  <p class="price-tip">Este já é um dos horários mais baratos do dia.</p>
+  {% endif %}
+</div>
+{% endif %}

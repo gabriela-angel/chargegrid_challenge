@@ -68,7 +68,7 @@
           {% if charger.allocated_kw and charger.allocated_kw > 0 %}~{{ '%.0f'|format(remaining_kwh / charger.allocated_kw * 60) }} min{% else %}—{% endif %}
         {% endif %}
       </span></div>
-      <div class="stat-row"><span class="label">Tarifa vigente</span><span class="val" id="stat-tariff">{{ tariff|brl }}/kWh</span></div>
+      <div class="stat-row"><span class="label">Tarifa da sua recarga (travada)</span><span class="val" id="stat-tariff">{{ tariff|brl }}/kWh</span></div>
       <div class="stat-row"><span class="label">Valor parcial</span><span class="val" id="stat-cost">{{ ((charger.energy_kwh or 0) * tariff)|brl }}</span></div>
     </div>
     <div class="banner-info">

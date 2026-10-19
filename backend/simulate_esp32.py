@@ -19,10 +19,13 @@ Como rodar (com o backend já rodando em outro terminal):
     python simulate_esp32.py
 """
 
+import os
 import time
 import requests
 
 BASE_URL = "http://127.0.0.1:8000/api/chargers"
+# Mesma chave do servidor (CHARGEGRID_API_KEY); sem ela o backend protegido responde 401.
+HEADERS = {"X-API-Key": os.environ["CHARGEGRID_API_KEY"]} if os.environ.get("CHARGEGRID_API_KEY") else {}
 CHARGER_ID = "CG-01"   # o carregador "físico"
 VEHICLE_ID = "CAR-ESP32"
 POLL_INTERVAL_SECONDS = 3
@@ -31,7 +34,7 @@ CHARGE_DURATION_SECONDS = 30  # simula quanto tempo o "carro" fica plugado
 
 def connect():
     print(f"[ESP32] Botão pressionado → conectando {VEHICLE_ID} em {CHARGER_ID}...")
-    resp = requests.post(f"{BASE_URL}/{CHARGER_ID}/connect", json={"vehicle_id": VEHICLE_ID})
+    resp = requests.post(f"{BASE_URL}/{CHARGER_ID}/connect", json={"vehicle_id": VEHICLE_ID}, headers=HEADERS)
     resp.raise_for_status()
     charger = resp.json()
     print(f"[ESP32] Conectado. Potência inicial alocada: {charger['allocated_kw']} kW")
@@ -46,7 +49,7 @@ def poll_allocation():
     No ESP32 real, o valor de allocated_kw controlaria, por exemplo,
     a frequência de piscar de um LED (quanto mais kW, mais rápido).
     """
-    resp = requests.get(f"{BASE_URL}/{CHARGER_ID}")
+    resp = requests.get(f"{BASE_URL}/{CHARGER_ID}", headers=HEADERS)
     resp.raise_for_status()
     charger = resp.json()
     print(
@@ -59,7 +62,7 @@ def poll_allocation():
 
 def disconnect():
     print(f"[ESP32] Botão pressionado novamente → desconectando {CHARGER_ID}...")
-    resp = requests.post(f"{BASE_URL}/{CHARGER_ID}/disconnect")
+    resp = requests.post(f"{BASE_URL}/{CHARGER_ID}/disconnect", headers=HEADERS)
     resp.raise_for_status()
     result = resp.json()
     print(

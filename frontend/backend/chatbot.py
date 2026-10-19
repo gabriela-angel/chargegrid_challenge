@@ -13,8 +13,6 @@ import unicodedata
 
 from remote_controller import RemoteController
 
-TARIFF_RS_PER_KWH = 4.26
-
 
 def _strip_accents(text: str) -> str:
     normalized = unicodedata.normalize("NFKD", text)
@@ -32,13 +30,12 @@ def _brl(value: float) -> str:
 
 
 def _billing_today(controller: RemoteController) -> dict:
-    active_kwh = sum(s.energy_consumed_kwh for s in controller.active_sessions)
-    completed_kwh = sum(s.energy_consumed_kwh for s in controller.completed_sessions)
-    total_kwh = active_kwh + completed_kwh
+    sessions = list(controller.active_sessions) + list(controller.today_completed_sessions)
+    total_kwh = sum(s.energy_consumed_kwh for s in sessions)
     return {
         "total_kwh": total_kwh,
-        "revenue_rs": total_kwh * TARIFF_RS_PER_KWH,
-        "sessions_today": len(controller.active_sessions) + len(controller.completed_sessions),
+        "revenue_rs": sum(s.cost_rs for s in sessions),
+        "sessions_today": len(sessions),
     }
 
 
@@ -88,12 +85,35 @@ def answer(message: str, controller: RemoteController) -> str:
         b = _billing_today(controller)
         return (
             f"Faturamento acumulado hoje: {_brl(b['revenue_rs'])} "
-            f"({b['total_kwh']:.3f} kWh a {_brl(TARIFF_RS_PER_KWH)}/kWh), "
+            f"({b['total_kwh']:.3f} kWh, cada sessão com a tarifa dinâmica travada na conexão), "
             f"em {b['sessions_today']} sessão(ões)."
         )
 
-    if any(k in text for k in ["tarifa", "preco do kwh", "valor do kwh"]):
-        return f"A tarifa aplicada é {_brl(TARIFF_RS_PER_KWH)}/kWh (tarifa ótima do modelo de lucro L(p))."
+    if any(k in text for k in ["solar", "fotovolt", "sol "]) or text.endswith("sol"):
+        snap = controller._state_snapshot()
+        return (
+            f"Geração solar agora: {snap.get('solar_kw', 0):.1f} kW (de {snap.get('solar_peak_kw', 0):g} kWp instalados). "
+            f"Orçamento dos carregadores: {snap.get('budget_kw', 0):.1f} kW "
+            f"({controller.usable_limit_kw:.1f} da rede + solar)."
+        )
+
+    if any(k in text for k in ["verde", "co2", "carbono", "sustent", "renovavel"]):
+        snap = controller._state_snapshot()
+        return (
+            f"{snap.get('green_share_pct', 0):.1f}% da energia entregue veio do solar "
+            f"({snap.get('green_kwh_total', 0):.2f} kWh verdes), "
+            f"evitando ~{snap.get('co2_avoided_kg', 0):.3f} kg de CO₂ (fator médio da rede brasileira, bem baixo)."
+        )
+
+    if any(k in text for k in ["tarifa", "preco", "valor do kwh", "quanto custa"]):
+        t = controller.tariff
+        if not t:
+            return "Ainda não consegui ler a tarifa do backend."
+        return (
+            f"Preço do kWh agora: {_brl(t['price_rs_per_kwh'])} (tarifa {t['level']}; "
+            f"{t['multiplier']:.2f}× a base de {_brl(t['base_rs_per_kwh'])}). "
+            f"A IA prevê a pressão sobre a rede e encarece os horários de pico — pressão atual: {t['pressure_pct']:.0f}%."
+        )
 
     if any(k in text for k in ["limite", "utilizacao", "capacidade", "quanto esta usado"]):
         return (

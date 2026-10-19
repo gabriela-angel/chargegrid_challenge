@@ -2,8 +2,8 @@
 ChargeGrid Intelligence — Contas de empresa / administrador (demo)
 -------------------------------------------------------------------
 Login separado do Dashboard de Gestão, no mesmo padrão "sem banco de
-dados" do `client_store.py` (em memória, sem hashing de senha — NÃO é
-autenticação real). Existe só para o Dashboard passar a exigir login
+dados" do `client_store.py` (em memória; senha guardada só como hash
+scrypt, ver security.py). Existe só para o Dashboard passar a exigir login
 (ele era público antes) e para a tela de Configurações ter uma conta
 de verdade para editar (nome do responsável / e-mail / senha).
 
@@ -13,6 +13,8 @@ funções, nunca mexe no dict interno diretamente.
 """
 
 import secrets
+
+from security import hash_password, verify_password
 
 # e-mail normalizado (minúsculo) -> conta
 companies: dict[str, dict] = {}
@@ -37,7 +39,7 @@ def create_company(empresa: str, responsavel: str, email: str, senha: str) -> di
         "empresa": empresa.strip(),
         "responsavel": responsavel.strip(),
         "email": email_norm,
-        "senha": senha,  # plaintext — demo, sem segurança real (mesmo padrão de client_store.py)
+        "senha_hash": hash_password(senha),  # nunca guarda a senha em texto
     }
     companies[email_norm] = account
     return account
@@ -45,7 +47,7 @@ def create_company(empresa: str, responsavel: str, email: str, senha: str) -> di
 
 def check_login(email: str, senha: str) -> dict | None:
     account = companies.get(_normalize_email(email))
-    if account and account["senha"] == senha:
+    if account and verify_password(senha, account["senha_hash"]):
         return account
     return None
 
@@ -82,7 +84,7 @@ def update_company(email: str, empresa: str | None = None, responsavel: str | No
     if responsavel is not None:
         account["responsavel"] = responsavel.strip()
     if senha:
-        account["senha"] = senha
+        account["senha_hash"] = hash_password(senha)
     novo_email_norm = _normalize_email(novo_email) if novo_email else None
     if novo_email_norm and novo_email_norm != email_norm:
         account["email"] = novo_email_norm

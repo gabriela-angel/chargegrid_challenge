@@ -19,6 +19,8 @@ Todos os nomes, CPFs (válidos só no dígito verificador), e-mails (example.com
 e placas são inventados.
 """
 
+import math
+import random
 from datetime import datetime, timedelta
 
 import client_store
@@ -103,4 +105,84 @@ def history_items(now: datetime | None = None) -> list[dict]:
             "duration_min": float(duration_min),
             "energy_kwh": round(avg_kw * duration_min / 60, 3),
         })
+    return items
+
+
+# ----------------------------------------------------------------------
+# Dias anteriores (histórico fictício) — alimenta o gráfico de faturamento
+# semana/mês e o re-treino da IA de previsão/tarifa dinâmica.
+# ----------------------------------------------------------------------
+
+PAST_DAYS = 60
+
+
+def _demand_shape_kw(hour: float, is_weekend: bool) -> float:
+    """Demanda típica do estacionamento (kW) numa hora do dia — a MESMA forma que a IA
+    aprende (backend/ai/generate_history.py): dois picos em dia útil (~8h e ~19h) e um
+    platô mais baixo à tarde no fim de semana."""
+    def hill(center, width, height):
+        return height * math.exp(-((hour - center) ** 2) / (2 * width ** 2))
+    if is_weekend:
+        return hill(14, 4.0, 28) + 4
+    return hill(8, 2.5, 35) + hill(19, 3.0, 52) + 6
+
+
+def _poisson(rng: random.Random, lam: float) -> int:
+    """Nº de chegadas numa hora (Knuth) — varia de dia para dia, como no mundo real."""
+    limit, k, p = math.exp(-lam), 0, 1.0
+    while True:
+        p *= rng.random()
+        if p <= limit:
+            return k
+        k += 1
+
+
+def past_days_items(now: datetime | None = None, days: int = PAST_DAYS) -> list[dict]:
+    """
+    Sessões fictícias dos `days` dias ANTERIORES a hoje (formato de history_items()).
+
+    Para cada hora, o nº de chegadas é sorteado para que a demanda média bata com a
+    curva típica (demanda = chegadas x duração média x potência média). Cada dia usa
+    uma semente própria (a data), então os mesmos dias geram as mesmas sessões em toda
+    execução — importar de novo não duplica. Um carregador nunca recebe duas sessões
+    ao mesmo tempo, e nenhuma sessão termina no futuro.
+    """
+    now = now or datetime.now()
+    avg_kw_mean, avg_min_mean = 14.0, 45.0
+    plate_rng = random.Random("demo-plates")
+    letters = "ABCDEFGHJKLMNPQRSTUVWXYZ"
+    plates = [f"{''.join(plate_rng.choices(letters, k=3))}{plate_rng.randint(0, 9)}{plate_rng.choice(letters)}{plate_rng.randint(10, 99)}"
+              for _ in range(90)]
+    chargers = [f"CG-{i:02d}" for i in range(1, 13)]
+    busy_until: dict[str, datetime] = {}
+    items: list[dict] = []
+
+    for offset in range(days, 0, -1):
+        day = (now - timedelta(days=offset)).date()
+        rng = random.Random(day.isoformat())
+        midnight = datetime.combine(day, datetime.min.time())
+        is_weekend = day.weekday() >= 5
+        for hour in range(24):
+            lam = _demand_shape_kw(hour + 0.5, is_weekend) / (avg_kw_mean * avg_min_mean / 60)
+            lam *= rng.uniform(0.85, 1.15)             # dia bom / dia fraco
+            arrivals = sorted(rng.randint(0, 59) for _ in range(_poisson(rng, lam)))
+            for minute in arrivals:
+                started = midnight + timedelta(hours=hour, minutes=minute)
+                duration = round(min(120.0, max(15.0, rng.gauss(avg_min_mean, 18))))
+                ended = started + timedelta(minutes=duration)
+                if ended > now - timedelta(minutes=5):
+                    continue
+                free = [c for c in chargers if busy_until.get(c, datetime.min) <= started]
+                if not free:
+                    continue                            # vagas lotadas: o carro foi embora
+                charger = rng.choice(free)
+                busy_until[charger] = ended
+                avg_kw = min(22.0, max(5.0, rng.gauss(avg_kw_mean, 4.0)))
+                items.append({
+                    "charger_id": charger,
+                    "vehicle_id": rng.choice(plates),
+                    "started_at": started.isoformat(),
+                    "duration_min": float(duration),
+                    "energy_kwh": round(avg_kw * duration / 60, 3),
+                })
     return items

@@ -26,6 +26,8 @@
 
     {% if error %}<div class="field-error">{{ error }}</div>{% endif %}
 
+    {% include "partials/price_strip.html" %}
+
     {% if free_chargers %}
     <form method="post" action="/cliente/carregar/resumo" class="wizard-form">
 
@@ -126,5 +128,6 @@
   })();
   </script>
 
+<script src="/static/chart-tip.js"></script>
 </body>
 </html>

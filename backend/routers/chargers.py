@@ -47,6 +47,9 @@ def get_completed_sessions():
             started_at=s.started_at.isoformat(),
             duration_min=round(s.duration_minutes(), 1),
             energy_kwh=round(s.energy_consumed_kwh, 3),
+            tariff_rs_per_kwh=s.tariff_rs_per_kwh,
+            cost_rs=round(s.cost_rs, 2),
+            green_kwh=round(s.green_kwh, 3),
         )
         for s in controller.completed_sessions
     ]
@@ -67,6 +70,8 @@ def import_completed_sessions(body: SessionImportRequest):
             "started_at": s.started_at.replace(tzinfo=None),  # o controller trabalha com datetimes ingênuos (hora local)
             "duration_min": s.duration_min,
             "energy_kwh": s.energy_kwh,
+            "tariff_rs_per_kwh": s.tariff_rs_per_kwh,
+            "green_kwh": s.green_kwh,
         }
         for s in body.sessions
     ]
@@ -114,7 +119,10 @@ def connect_vehicle(charger_id: str, body: ConnectRequest):
     Evento: veículo conectou. Dispara a redistribuição de potência
     em TODOS os carregadores ativos (não só neste).
     """
-    result = controller.vehicle_connect(charger_id, body.vehicle_id)
+    try:
+        result = controller.vehicle_connect(charger_id, body.vehicle_id, body.tariff_rs_per_kwh)
+    except ValueError:
+        raise HTTPException(status_code=404, detail=f"Carregador '{charger_id}' não encontrado.")
     if "error" in result:
         raise HTTPException(status_code=409, detail=result["error"])
 
@@ -129,8 +137,7 @@ def disconnect_vehicle(charger_id: str):
     """
     Evento: veículo desconectou. Fecha a sessão, libera a potência e
     redistribui para os demais. Retorna o resumo (kWh, duração) —
-    o cálculo de custo (tarifa dinâmica) entra aqui quando o pilar de
-    Tarifação for implementado.
+    o custo usa a tarifa dinâmica travada na conexão da sessão.
     """
     # Precisamos do vehicle_id e da sessão ANTES de desconectar,
     # então lemos o snapshot atual primeiro.
@@ -155,5 +162,7 @@ def disconnect_vehicle(charger_id: str):
         vehicle_id=vehicle_id,
         energy_kwh=round(finished.energy_consumed_kwh, 3),
         duration_min=round(finished.duration_minutes(), 1),
-        estimated_cost_brl=None,
+        tariff_rs_per_kwh=finished.tariff_rs_per_kwh,
+        cost_brl=round(finished.cost_rs, 2),
+        green_kwh=round(finished.green_kwh, 3),
     )

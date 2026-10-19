@@ -13,6 +13,9 @@ from pydantic import BaseModel
 
 class ConnectRequest(BaseModel):
     vehicle_id: str
+    # Preço (R$/kWh) que o motorista viu e aceitou — fica travado na sessão.
+    # Omitido (ESP32, operador): vale o preço dinâmico do momento.
+    tariff_rs_per_kwh: float | None = None
 
 
 class ChargerOut(BaseModel):
@@ -24,6 +27,9 @@ class ChargerOut(BaseModel):
     vehicle_id: str | None = None
     duration_min: float | None = None
     energy_kwh: float | None = None
+    tariff_rs_per_kwh: float | None = None
+    cost_rs: float | None = None
+    green_kwh: float | None = None
 
 
 class SiteStateOut(BaseModel):
@@ -35,6 +41,15 @@ class SiteStateOut(BaseModel):
     available_kw: float
     utilization_pct: float
     active_sessions: int
+    solar_kw: float = 0.0
+    solar_peak_kw: float = 0.0
+    sim_hour: float | None = None
+    budget_kw: float = 0.0
+    grid_draw_kw: float = 0.0
+    tariff: dict = {}
+    green_kwh_total: float = 0.0
+    green_share_pct: float = 0.0
+    co2_avoided_kg: float = 0.0
     chargers: list[ChargerOut]
     events: list[dict]
 
@@ -45,6 +60,9 @@ class SessionOut(BaseModel):
     started_at: str  # ISO 8601
     duration_min: float
     energy_kwh: float
+    tariff_rs_per_kwh: float = 0.0
+    cost_rs: float = 0.0
+    green_kwh: float = 0.0
 
 
 class EventOut(BaseModel):
@@ -59,8 +77,9 @@ class DisconnectResult(BaseModel):
     vehicle_id: str
     energy_kwh: float
     duration_min: float
-    # placeholder — pilar de Tarifação ainda não implementado
-    estimated_cost_brl: float | None = None
+    tariff_rs_per_kwh: float = 0.0
+    cost_brl: float = 0.0
+    green_kwh: float = 0.0
 
 
 class SettingsIn(BaseModel):
@@ -84,6 +103,8 @@ class SessionImportItem(BaseModel):
     started_at: datetime
     duration_min: float
     energy_kwh: float
+    tariff_rs_per_kwh: float | None = None   # omitido: reconstrói o preço dinâmico da hora
+    green_kwh: float | None = None           # omitido: estima pelo solar do período
 
 
 class SessionImportRequest(BaseModel):
@@ -93,3 +114,20 @@ class SessionImportRequest(BaseModel):
 class SessionImportResult(BaseModel):
     imported: int
     skipped: int  # já existiam (mesmo carregador + veículo + início)
+
+
+class TariffConfigIn(BaseModel):
+    """Campos opcionais: manda só o que quer mudar."""
+    base_rs_per_kwh: float | None = None
+    min_multiplier: float | None = None
+    max_multiplier: float | None = None
+    low_pressure_pct: float | None = None
+    high_pressure_pct: float | None = None
+    pressure_auto: bool | None = None   # True: volta à calibração automática pela IA
+
+
+class SolarConfigIn(BaseModel):
+    """peak_kw: kWp instalados. sim_hour: hora "congelada" para demo (0–24);
+    mandar `sim_hour: null` explicitamente volta ao relógio real."""
+    peak_kw: float | None = None
+    sim_hour: float | None = None

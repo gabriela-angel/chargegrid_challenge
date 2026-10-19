@@ -35,7 +35,7 @@
         <tbody>
           {% for s in sessions %}
           <tr>
-            <td>{{ s.started_at[11:19] }}</td>
+            <td>{{ s.started_at[8:10] }}/{{ s.started_at[5:7] }} {{ s.started_at[11:16] }}</td>
             <td>{{ s.client_name or '—' }}</td>
             <td>{{ s.vehicle_id }}</td>
             <td>{{ s.charger_id }}</td>
@@ -47,6 +47,9 @@
         </tbody>
       </table>
     </div>
+    {% if history_total > history_limit %}
+    <p class="billing-note">Mostrando as {{ history_limit }} sessões mais recentes de {{ history_total }}.</p>
+    {% endif %}
     {% else %}
     <div class="empty-state">Nenhuma recarga concluída ainda.</div>
     {% endif %}

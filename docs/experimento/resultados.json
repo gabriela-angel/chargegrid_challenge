@@ -1,0 +1,208 @@
+{
+  "meta": {
+    "dias": 30,
+    "repeticoes": 30,
+    "semente": 42,
+    "modelo_ia": {
+      "mae_kw": 7.77,
+      "r2": 0.666,
+      "train_samples": 1728,
+      "test_samples": 432,
+      "real_samples": 0,
+      "trained_at": "2026-10-17T20:28:11",
+      "coefficients": {
+        "hour_sin_24": -9.992,
+        "hour_cos_24": -5.695,
+        "hour_sin_12": -7.821,
+        "hour_cos_12": -9.445,
+        "dow_sin": -0.34,
+        "dow_cos": 0.429,
+        "is_weekend": -14.924
+      }
+    },
+    "premissas": {
+      "janela_h": 3,
+      "saturacao_desconto": 0.2,
+      "ruido_dia": 0.15,
+      "ruido_hora": 0.08,
+      "cenarios": {
+        "normal": 1.0,
+        "congestionado": 1.8
+      }
+    }
+  },
+  "resultados": {
+    "normal": [
+      {
+        "peak_kw": 49.015467614135474,
+        "over_limit_kwh_day": 0.0,
+        "hours_above_80pct_day": 0.027777777777777776,
+        "revenue_day": 1213.5628863268853,
+        "kwh_day": 638.7173085930975,
+        "avg_price": 1.9,
+        "peak_sd": 1.3864158728263714,
+        "tarifa": "fixo",
+        "flex": 0.0,
+        "peak_reduction_pct": 0.0,
+        "over_limit_reduction_pct": null,
+        "revenue_change_pct": 0.0
+      },
+      {
+        "peak_kw": 49.015467614135474,
+        "over_limit_kwh_day": 0.0,
+        "hours_above_80pct_day": 0.027777777777777776,
+        "revenue_day": 1157.301558439793,
+        "kwh_day": 638.7173085930975,
+        "avg_price": 1.811905986513439,
+        "peak_sd": 1.3864158728263714,
+        "tarifa": "dinamica",
+        "flex": 0.0,
+        "peak_reduction_pct": 0.0,
+        "over_limit_reduction_pct": null,
+        "revenue_change_pct": -4.636045525203845
+      },
+      {
+        "peak_kw": 44.22000109746822,
+        "over_limit_kwh_day": 0.0,
+        "hours_above_80pct_day": 0.003333333333333333,
+        "revenue_day": 1141.7582334369445,
+        "kwh_day": 638.7173085930975,
+        "avg_price": 1.787571339895596,
+        "peak_sd": 1.2604527908043388,
+        "tarifa": "dinamica",
+        "flex": 0.1,
+        "peak_reduction_pct": 9.783578021571907,
+        "over_limit_reduction_pct": null,
+        "revenue_change_pct": -5.916846477340238
+      },
+      {
+        "peak_kw": 39.580740003504815,
+        "over_limit_kwh_day": 0.0,
+        "hours_above_80pct_day": 0.0,
+        "revenue_day": 1126.2149084340958,
+        "kwh_day": 638.7173085930975,
+        "avg_price": 1.763236693277753,
+        "peak_sd": 1.1298337701111199,
+        "tarifa": "dinamica",
+        "flex": 0.2,
+        "peak_reduction_pct": 19.248470064396155,
+        "over_limit_reduction_pct": null,
+        "revenue_change_pct": -7.19764742947663
+      },
+      {
+        "peak_kw": 40.46904184608769,
+        "over_limit_kwh_day": 0.0,
+        "hours_above_80pct_day": 0.0011111111111111111,
+        "revenue_day": 1110.671583431247,
+        "kwh_day": 638.7173085930975,
+        "avg_price": 1.7389020466599099,
+        "peak_sd": 1.1159493216687617,
+        "tarifa": "dinamica",
+        "flex": 0.3,
+        "peak_reduction_pct": 17.436181238395644,
+        "over_limit_reduction_pct": null,
+        "revenue_change_pct": -8.478448381613042
+      },
+      {
+        "peak_kw": 46.26802684301678,
+        "over_limit_kwh_day": 0.0,
+        "hours_above_80pct_day": 0.01,
+        "revenue_day": 1095.1282584283983,
+        "kwh_day": 638.7173085930975,
+        "avg_price": 1.714567400042067,
+        "peak_sd": 1.2765605897715973,
+        "tarifa": "dinamica",
+        "flex": 0.4,
+        "peak_reduction_pct": 5.605252596481132,
+        "over_limit_reduction_pct": null,
+        "revenue_change_pct": -9.759249333749434
+      }
+    ],
+    "congestionado": [
+      {
+        "peak_kw": 88.27310999965542,
+        "over_limit_kwh_day": 14.59938702673095,
+        "hours_above_80pct_day": 3.312222222222222,
+        "revenue_day": 2184.413195388394,
+        "kwh_day": 1149.6911554675755,
+        "avg_price": 1.9000000000000001,
+        "peak_sd": 2.513001043183944,
+        "tarifa": "fixo",
+        "flex": 0.0,
+        "peak_reduction_pct": 0.0,
+        "over_limit_reduction_pct": 0.0,
+        "revenue_change_pct": 0.0
+      },
+      {
+        "peak_kw": 88.27310999965542,
+        "over_limit_kwh_day": 14.59938702673095,
+        "hours_above_80pct_day": 3.312222222222222,
+        "revenue_day": 2083.1428051916278,
+        "kwh_day": 1149.6911554675755,
+        "avg_price": 1.811905986513439,
+        "peak_sd": 2.513001043183944,
+        "tarifa": "dinamica",
+        "flex": 0.0,
+        "peak_reduction_pct": 0.0,
+        "over_limit_reduction_pct": 0.0,
+        "revenue_change_pct": -4.636045525203853
+      },
+      {
+        "peak_kw": 79.66893776394397,
+        "over_limit_kwh_day": 5.864473343075102,
+        "hours_above_80pct_day": 2.7111111111111112,
+        "revenue_day": 2055.1648201865,
+        "kwh_day": 1149.6911554675755,
+        "avg_price": 1.7875713398955961,
+        "peak_sd": 2.2785699788323193,
+        "tarifa": "dinamica",
+        "flex": 0.1,
+        "peak_reduction_pct": 9.747217737932914,
+        "over_limit_reduction_pct": 59.83068787520008,
+        "revenue_change_pct": -5.916846477340253
+      },
+      {
+        "peak_kw": 71.40982026830841,
+        "over_limit_kwh_day": 2.0507208415341442,
+        "hours_above_80pct_day": 2.2255555555555557,
+        "revenue_day": 2027.1868351813723,
+        "kwh_day": 1149.6911554675758,
+        "avg_price": 1.763236693277753,
+        "peak_sd": 2.02557972390124,
+        "tarifa": "dinamica",
+        "flex": 0.2,
+        "peak_reduction_pct": 19.10354096668038,
+        "over_limit_reduction_pct": 85.95337709878265,
+        "revenue_change_pct": -7.197647429476654
+      },
+      {
+        "peak_kw": 73.78785608480901,
+        "over_limit_kwh_day": 2.8248957162105874,
+        "hours_above_80pct_day": 1.9966666666666666,
+        "revenue_day": 1999.2088501762448,
+        "kwh_day": 1149.6911554675758,
+        "avg_price": 1.7389020466599099,
+        "peak_sd": 2.005181139272448,
+        "tarifa": "dinamica",
+        "flex": 0.3,
+        "peak_reduction_pct": 16.40958828221069,
+        "over_limit_reduction_pct": 80.65058682917095,
+        "revenue_change_pct": -8.478448381613044
+      },
+      {
+        "peak_kw": 84.65412246762617,
+        "over_limit_kwh_day": 8.528633564103396,
+        "hours_above_80pct_day": 2.046666666666667,
+        "revenue_day": 1971.230865171117,
+        "kwh_day": 1149.6911554675758,
+        "avg_price": 1.7145674000420668,
+        "peak_sd": 2.2770563019019616,
+        "tarifa": "dinamica",
+        "flex": 0.4,
+        "peak_reduction_pct": 4.099762126930136,
+        "over_limit_reduction_pct": 41.582248977386676,
+        "revenue_change_pct": -9.759249333749445
+      }
+    ]
+  }
+}

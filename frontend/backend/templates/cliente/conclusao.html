@@ -28,6 +28,8 @@
       <div class="row"><span>Vaga</span><span class="val">{{ r.charger_id }} — {{ r.location }}</span></div>
       <div class="row"><span>Energia total</span><span class="val">{{ '%.3f'|format(r.energy_kwh) }} kWh</span></div>
       <div class="row"><span>Tempo total</span><span class="val">{{ '%.1f'|format(r.duration_min) }} min</span></div>
+      <div class="row"><span>Tarifa aplicada</span><span class="val">{{ r.tariff_rs_per_kwh|brl }}/kWh</span></div>
+      <div class="row"><span>Energia solar</span><span class="val">{{ '%.3f'|format(r.green_kwh) }} kWh</span></div>
       <div class="row"><span>Valor total</span><span class="val">{{ r.revenue_rs|brl }}</span></div>
     </div>
 

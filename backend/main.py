@@ -13,13 +13,15 @@ não "localhost" (que só existe dentro da própria máquina).
 """
 
 import asyncio
+import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from core.auth import require_api_key, warn_if_open
 from core.state import controller
-from routers import chargers, predictions, settings
+from routers import billing, chargers, hardware, predictions, settings, solar, tariff
 
 TICK_INTERVAL_SECONDS = 1.0
 
@@ -33,17 +35,22 @@ async def energy_tick_loop():
     """
     while True:
         await asyncio.sleep(TICK_INTERVAL_SECONDS)
-        controller.tick_energy(TICK_INTERVAL_SECONDS)
+        try:
+            controller.tick_energy(TICK_INTERVAL_SECONDS)
+        except Exception:   # um erro num tick não pode parar o faturamento de todo mundo
+            logging.getLogger("chargegrid.tick").exception("falha no tick de energia — seguindo")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    warn_if_open()
     task = asyncio.create_task(energy_tick_loop())
     yield
     task.cancel()
 
 
-app = FastAPI(title="ChargeGrid Intelligence API", lifespan=lifespan)
+app = FastAPI(title="ChargeGrid Intelligence API", lifespan=lifespan,
+              dependencies=[Depends(require_api_key)])
 
 # Sprint 3 (MVP): libera geral para simplificar o desenvolvimento com o
 # ESP32 e os dois frontends ainda sem domínio fixo. Antes de produção,
@@ -59,6 +66,10 @@ app.include_router(chargers.router)
 app.include_router(chargers.site_router)
 app.include_router(predictions.router)
 app.include_router(settings.router)
+app.include_router(tariff.router)
+app.include_router(solar.router)
+app.include_router(hardware.router)
+app.include_router(billing.router)
 
 
 @app.get("/")

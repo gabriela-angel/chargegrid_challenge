@@ -9,6 +9,7 @@ Só biblioteca padrão — não precisa instalar nada.
 """
 
 import json
+import os
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -24,8 +25,10 @@ GOALS = [("tempo", 30), ("energia", 12), ("tempo", 45), ("energia", 18),
 
 def _call(host: str, method: str, path: str, data: dict | None = None):
     body = urllib.parse.urlencode(data).encode("utf-8") if data is not None else None
-    req = urllib.request.Request(f"{host}{path}", data=body, method=method,
-                                 headers={"Content-Type": "application/x-www-form-urlencoded"} if body else {})
+    headers = {"Content-Type": "application/x-www-form-urlencoded"} if body else {}
+    if os.environ.get("CHARGEGRID_API_KEY"):       # mesma chave do servidor (ver backend/security.py)
+        headers["X-API-Key"] = os.environ["CHARGEGRID_API_KEY"]
+    req = urllib.request.Request(f"{host}{path}", data=body, method=method, headers=headers)
     try:
         with urllib.request.urlopen(req, timeout=8) as resp:
             return resp.status, json.loads(resp.read().decode("utf-8") or "null")
@@ -46,6 +49,10 @@ def list_clients(host: str) -> list[dict]:
     status, data = _call(host, "GET", "/demo/clientes")
     if status == 404:
         print("\n  Modo demonstração desligado no servidor (DEMO_MODE=0) — nada a fazer.")
+        raise SystemExit(1)
+    if status != 200:
+        print(f"\n  Erro {status}: {data}")
+        print("  Exporte CHARGEGRID_API_KEY com o valor impresso pelo run.sh e tente de novo.")
         raise SystemExit(1)
     return data
 

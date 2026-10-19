@@ -55,10 +55,11 @@ fi
 # ----------------------------------------------------------------------
 # 4. Sobe os dois servidores
 # ----------------------------------------------------------------------
+SIM_PID=""
 cleanup() {
     echo ""
     echo "Encerrando backend (PID $BACKEND_PID) e frontend (PID $FRONTEND_PID)..."
-    kill "$BACKEND_PID" "$FRONTEND_PID" 2>/dev/null
+    kill "$BACKEND_PID" "$FRONTEND_PID" $SIM_PID 2>/dev/null
     wait "$BACKEND_PID" "$FRONTEND_PID" 2>/dev/null
     echo "Encerrado."
     exit 0
@@ -75,6 +76,29 @@ check_port() {
 
 check_port 8000
 check_port 8001
+
+# Pagamento: sem frontend/.env o app do motorista tentaria o Pix real. Cria um .env de avaliação.
+if [ ! -f "$ROOT_DIR/frontend/.env" ]; then
+    cp "$ROOT_DIR/frontend/.env.example" "$ROOT_DIR/frontend/.env"
+    echo "       Criado frontend/.env a partir do .env.example (PAYMENT_MODE=mock — pagamento simulado)."
+fi
+
+# Chave de API compartilhada entre backend, frontend e scripts. Se você não definiu
+# CHARGEGRID_API_KEY, geramos uma aleatória só para esta execução (backend nunca fica aberto).
+if [ -z "$CHARGEGRID_API_KEY" ]; then
+    CHARGEGRID_API_KEY="$(python3 -c 'import secrets; print(secrets.token_urlsafe(24))')"
+fi
+export CHARGEGRID_API_KEY
+
+# HARDWARE_MODE=modbus ./run.sh  → sobe também o simulador do HCA G2 (Modbus TCP, porta 5020)
+# e o backend passa a escrever os limites de potência nos registradores de verdade.
+if [ "$HARDWARE_MODE" = "modbus" ]; then
+    check_port 5020
+    echo "[4/4] Modo Modbus: subindo o simulador do HCA G2 na porta 5020..."
+    (cd "$BACKEND_DIR" && exec venv/bin/python -m simulator.hca_g2_sim --port 5020 --chargers 12 >/dev/null) &
+    SIM_PID=$!
+    sleep 1
+fi
 
 echo "[4/4] Subindo backend (8000) e frontend (8001)..."
 (cd "$BACKEND_DIR" && exec venv/bin/uvicorn main:app --host 127.0.0.1 --port 8000) &
@@ -95,6 +119,9 @@ echo "     http://127.0.0.1:8000/docs"
 echo ""
 echo "   Frontend (dashboard do operador + app do motorista):"
 echo "     http://127.0.0.1:8001"
+echo ""
+echo "   Para rodar os scripts de demo / simulate_esp32.py em outro terminal:"
+echo "     export CHARGEGRID_API_KEY=$CHARGEGRID_API_KEY"
 echo ""
 echo " Ctrl+C encerra os dois servidores."
 echo "======================================================================"

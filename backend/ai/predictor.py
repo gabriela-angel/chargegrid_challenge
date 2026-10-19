@@ -28,7 +28,18 @@ def _get_model():
             )
         bundle = joblib.load(MODEL_PATH)
         _cache["model"] = bundle["model"]
+        _cache["metrics"] = bundle.get("metrics", {})
     return _cache["model"]
+
+
+def reload_model() -> None:
+    """Descarta o modelo em cache — a próxima previsão relê ai/model.joblib (após re-treino)."""
+    _cache.clear()
+
+
+def model_metrics() -> dict:
+    _get_model()
+    return _cache.get("metrics", {})
 
 
 def predict_hour(hour: int, day_of_week: int) -> float:

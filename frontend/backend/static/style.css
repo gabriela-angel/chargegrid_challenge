@@ -685,14 +685,6 @@ button.primary:hover { background: var(--goodwe-red-deep); border-color: var(--g
 .billing-row .val { font-family: var(--font-mono); font-weight: 600; }
 .billing-note { font-size: 0.72rem; color: var(--ink-low); margin-top: -0.1rem; margin-bottom: 0.4rem; }
 
-#profit-curve { width: 100%; height: 90px; display: block; margin-top: 0.6rem; }
-.profit-gradient-start { stop-color: var(--goodwe-red); stop-opacity: 0.25; }
-.profit-gradient-end { stop-color: var(--goodwe-red); stop-opacity: 0; }
-.profit-area { transition: opacity var(--transition-med); }
-.profit-line { fill: none; stroke: var(--goodwe-red); stroke-width: 2; }
-.profit-baseline { stroke: var(--line); stroke-width: 1; }
-.profit-marker { fill: var(--goodwe-red-deep); }
-.profit-caption { font-size: 0.72rem; color: var(--ink-low); margin-top: 0.3rem; }
 
 /* Assistente IA — widget flutuante, disponível em qualquer tela
    (dashboard e app do cliente), não preso a uma coluna de layout. */
@@ -1286,6 +1278,56 @@ input:focus, select:focus { border-color: var(--goodwe-red); outline: none; }
 .forecast-legend .dot.critical { background: var(--critical); }
 
 /* ---------------------------------------------------------------- */
+/* Energia solar + tarifa dinâmica (Sprint 4)                         */
+/* Cores por nível de tarifa: baixa = verde (disponível), normal =    */
+/* neutro, alta = âmbar. Só tokens do design system.                  */
+/* ---------------------------------------------------------------- */
+
+.energy-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 0.9rem;
+  margin-bottom: 1rem;
+}
+.energy-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.8rem 0.9rem;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.energy-label { font-size: 0.74rem; color: var(--ink-mid); }
+.energy-value { font-size: 1.55rem; font-weight: 600; color: var(--ink); display: flex; align-items: baseline; gap: 0.5rem; flex-wrap: wrap; }
+.energy-sub { font-size: 0.72rem; color: var(--ink-low); }
+
+.level-pill {
+  display: inline-block;
+  padding: 0.12rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--ink-mid);
+}
+.level-pill.baixa { color: var(--available); border-color: var(--available); }
+.level-pill.alta { color: var(--amber); border-color: var(--amber); }
+
+.price-strip { margin: 0.4rem 0 1rem; }
+.price-now { display: flex; align-items: center; justify-content: space-between; gap: 0.8rem; margin-bottom: 0.6rem; }
+.price-label { display: block; font-size: 0.74rem; color: var(--ink-mid); }
+.price-value { font-size: 1.5rem; font-weight: 600; color: var(--ink); }
+.price-bars { height: 84px; }
+.forecast-bar.price-bar.baixa { background: var(--available); }
+.forecast-bar.price-bar.normal { background: var(--ink-low); }
+.forecast-bar.price-bar.alta { background: var(--amber); }
+.price-tip { font-size: 0.8rem; color: var(--ink-mid); margin: 0.6rem 0 0; }
+.price-tip b { color: var(--ink); font-family: var(--font-mono); }
+
+/* ---------------------------------------------------------------- */
 /* Ícones do app do cliente — SVG de traço em vermelho (substituem os  */
 /* emojis). Mesma linguagem da dashboard: .panel-icon (Lucide, 2.25).   */
 /* ---------------------------------------------------------------- */
@@ -1433,3 +1475,140 @@ input:focus, select:focus { border-color: var(--goodwe-red); outline: none; }
   .node.occupied.pulse, .node.fault.pulse { animation: none; }
   .cable-path.active { animation: none; }
 }
+/* ================================================================ */
+/* Tooltip visual dos gráficos (static/chart-tip.js)                  */
+/* Cartão flutuante + barra destacada (as vizinhas ficam apagadas).   */
+/* Cores por tom: ok = verde, warn = âmbar, critical = crítico.       */
+/* ================================================================ */
+
+.cg-tip {
+  position: absolute;
+  z-index: 1000;
+  min-width: 9.5rem;
+  max-width: 15rem;
+  padding: 0.65rem 0.8rem 0.7rem;
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-card-hover);
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity var(--transition-fast), transform var(--transition-fast);
+  --tone: var(--ink-mid);
+}
+.cg-tip.is-visible { opacity: 1; transform: translateY(0); }
+.cg-tip[data-tone="ok"] { --tone: var(--available); }
+.cg-tip[data-tone="warn"] { --tone: var(--amber); }
+.cg-tip[data-tone="critical"] { --tone: var(--critical); }
+.cg-tip-head { font-size: 0.72rem; color: var(--ink-mid); font-weight: 500; letter-spacing: 0.02em; }
+.cg-tip-main { font-size: 1.25rem; font-weight: 600; line-height: 1.25; margin-top: 0.1rem; color: var(--ink); }
+.cg-tip-pill {
+  display: inline-block;
+  margin-top: 0.3rem;
+  padding: 0.08rem 0.5rem;
+  border: 1px solid var(--tone);
+  border-radius: var(--radius-pill);
+  color: var(--tone);
+  font-size: 0.68rem;
+  font-weight: 500;
+}
+.cg-tip-detail { font-size: 0.72rem; color: var(--ink-mid); margin-top: 0.4rem; }
+.cg-tip [hidden] { display: none; }
+.cg-tip-arrow {
+  position: absolute;
+  left: var(--arrow-x, 50%);
+  width: 10px; height: 10px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  transform: translateX(-50%) rotate(45deg);
+}
+.cg-tip[data-side="top"] .cg-tip-arrow { bottom: -6px; border-top: 0; border-left: 0; }
+.cg-tip[data-side="bottom"] .cg-tip-arrow { top: -6px; border-bottom: 0; border-right: 0; }
+
+/* Alvo ativo: coluna inteira com fundo suave (guia vertical) e barra em destaque */
+[data-tip] { cursor: default; border-radius: 4px; transition: background var(--transition-fast); }
+[data-tip]:focus-visible { outline: 2px solid var(--goodwe-red); outline-offset: 1px; }
+[data-tip].is-active { background: var(--surface-2); }
+.forecast-bars:has(.is-active) .forecast-bar-col:not(.is-active) .forecast-bar { opacity: 0.4; }
+.forecast-bar { transition: height var(--transition-med), opacity var(--transition-fast); }
+.forecast-bar-col.is-active .forecast-bar { filter: brightness(1.12); }
+
+@media (prefers-reduced-motion: reduce) {
+  .cg-tip { transition: none; transform: none; }
+}
+
+/* ================================================================ */
+/* Gráfico de faturamento (Dia | Semana | Mês) — partials/revenue_chart */
+/* ================================================================ */
+
+.rev-chart { margin-top: 0.9rem; }
+.rev-tabs { display: inline-flex; padding: 3px; gap: 2px; background: var(--surface-2); border-radius: var(--radius-pill); }
+.rev-tab {
+  border: 0; background: transparent; color: var(--ink-mid);
+  font: inherit; font-size: 0.78rem; font-weight: 500;
+  padding: 0.28rem 0.85rem; border-radius: var(--radius-pill); cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+.rev-tab:hover { color: var(--ink); }
+.rev-tab.active { background: var(--surface); color: var(--ink); box-shadow: var(--shadow-card); }
+.rev-summary { margin: 0.8rem 0 0.6rem; }
+.rev-title { font-size: 0.78rem; color: var(--ink-mid); }
+.rev-total { font-size: 1.6rem; font-weight: 600; color: var(--ink); line-height: 1.2; }
+.rev-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 0.3rem 0.8rem; margin-top: 0.15rem; }
+.rev-delta { font-size: 0.76rem; font-weight: 500; color: var(--ink-mid); }
+.rev-delta.ok { color: var(--available); }
+.rev-delta.warn { color: var(--amber); }
+.rev-sub { font-size: 0.74rem; color: var(--ink-low); }
+.rev-plot { display: flex; gap: 0.5rem; align-items: stretch; }
+.rev-yaxis {
+  display: flex; flex-direction: column; justify-content: space-between;
+  height: 140px; flex: 0 0 auto; text-align: right;
+  font-family: var(--font-mono); font-size: 0.62rem; color: var(--ink-low);
+}
+.rev-area { position: relative; flex: 1; min-width: 0; }
+.rev-grid { position: absolute; inset: 0 0 auto 0; height: 140px; display: flex; flex-direction: column; justify-content: space-between; pointer-events: none; }
+.rev-grid i { display: block; border-top: 1px dashed var(--line); }
+.rev-bars { height: 140px; position: relative; border-bottom: 0; }
+.forecast-bar.rev { background: var(--ink-low); }
+.forecast-bar.rev.current { background: var(--goodwe-red); }
+.forecast-bar.rev.future { background: transparent; border-bottom: 2px dotted var(--line); border-radius: 0; }
+.rev-caption { font-size: 0.74rem; color: var(--ink-low); margin: 0.5rem 0 0; }
+
+
+/* ---- Configurações: ícone "i", faixa de preço em destaque, bloco avançado, modo demonstração ---- */
+.edit-label-line { display: flex; align-items: center; gap: 0.4rem; }
+.info-tip {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 1rem; height: 1rem; border-radius: 50%;
+  border: 1px solid var(--ink-low); color: var(--ink-mid);
+  font: italic 600 0.65rem/1 var(--font-serif, Georgia, serif);
+  cursor: help; user-select: none; flex: none;
+  transition: color var(--transition-fast), border-color var(--transition-fast), background var(--transition-fast);
+}
+.info-tip:hover, .info-tip:focus-visible, .info-tip.is-active {
+  color: var(--goodwe-red); border-color: var(--goodwe-red);
+  background: color-mix(in srgb, var(--goodwe-red) 10%, transparent); outline: none;
+}
+.edit-static.is-bold { font-weight: 700; font-family: var(--font-mono); }
+
+.edit-advanced { margin-top: 0.4rem; border-top: 1px dashed var(--line); padding-top: 0.5rem; }
+.edit-advanced > summary {
+  cursor: pointer; list-style: none; font-size: 0.8rem; font-weight: 600; color: var(--ink-mid);
+  display: flex; align-items: center; gap: 0.4rem; padding: 0.3rem 0;
+}
+.edit-advanced > summary::-webkit-details-marker { display: none; }
+.edit-advanced > summary::before { content: "▸"; font-size: 0.7rem; transition: transform var(--transition-fast); }
+.edit-advanced[open] > summary::before { transform: rotate(90deg); }
+.auto-badge {
+  font-size: 0.68rem; font-weight: 600; padding: 0.1rem 0.5rem; border-radius: 999px;
+  border: 1px solid var(--line); color: var(--ink-mid);
+}
+.auto-badge.on { color: var(--available); border-color: var(--available); }
+.auto-note { font-size: 0.78rem; color: var(--ink-mid); margin: 0.2rem 0 0.4rem; }
+.auto-note button { margin-left: 0.4rem; }
+
+.demo-panel { border-style: dashed; }
+.demo-form { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; margin-top: 0.4rem; }
+.demo-form select { padding: 0.4rem 0.6rem; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface); color: var(--ink); }

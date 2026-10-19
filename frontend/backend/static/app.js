@@ -104,6 +104,24 @@
   // Dashboard de Gestão
   // ------------------------------------------------------------------
 
+  // Solar, energia verde e preço dinâmico (painel "Energia solar e tarifa dinâmica").
+  function renderEnergy(state) {
+    if (state.solar_kw == null) return;
+    animateNumberTo("bus-solar", state.solar_kw, (v) => v.toFixed(1));
+    animateNumberTo("solar-kw", state.solar_kw, (v) => v.toFixed(1));
+    setStaticText("solar-peak", String(+state.solar_peak_kw.toFixed(1)));
+    animateNumberTo("green-share", state.green_share_pct, (v) => v.toFixed(1));
+    animateNumberTo("green-kwh", state.green_kwh_total, (v) => v.toFixed(2));
+    animateNumberTo("co2-kg", state.co2_avoided_kg, (v) => v.toFixed(3));
+    const t = state.tariff || {};
+    if (t.price_rs_per_kwh != null) {
+      animateNumberTo("tariff-now", t.price_rs_per_kwh, formatBRL);
+      setStaticText("tariff-pressure", t.pressure_pct.toFixed(0));
+      const pill = $("tariff-level");
+      if (pill) { pill.textContent = t.level; pill.className = "level-pill " + t.level; }
+    }
+  }
+
   function renderDashboard(state) {
     if ($("clock")) $("clock").textContent = state.clock;
 
@@ -112,7 +130,9 @@
       $("bus-fill").setAttribute("width", (BUS_TRACK_W * frac).toFixed(1));
       $("bus-fill").setAttribute("class", "bus-fill " + levelClass(state.utilization_level));
     }
-    animateNumberTo("bus-allocated", state.total_allocated_kw, (v) => v.toFixed(1));
+    // O barramento representa a REDE: mostra o que os carregadores puxam dela (o solar fica de fora).
+    animateNumberTo("bus-allocated", state.grid_draw_kw != null ? state.grid_draw_kw : state.total_allocated_kw, (v) => v.toFixed(1));
+    renderEnergy(state);
 
     // Limites configuráveis (Configurações → Potência da rede): atualiza os
     // textos e o marcador do limite de uso sem precisar recarregar a página.
@@ -305,7 +325,7 @@
     if (!c) return;
     const occupied = c.status === "OCUPADO";
     const maxKw = parseFloat(document.body.dataset.maxKw) || c.max_kw || 1;
-    const tariff = parseFloat(document.body.dataset.tariff) || 4.26;
+    const tariff = parseFloat(document.body.dataset.tariff) || 0;
     const goalType = document.body.dataset.goalType || ""; // "tempo" | "energia" | "" (tela de vaga não autenticada)
     const targetKwh = parseFloat(document.body.dataset.targetKwh);
     const targetMin = parseFloat(document.body.dataset.targetMin);
